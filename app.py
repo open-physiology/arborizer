@@ -16,8 +16,8 @@ def index():
     return render_template('index.html', fma_list=fma_list, source="7101", target="66363")
 
 
-@app.route("/predict", methods=['GET', 'POST'])
-def predict():
+@app.route("/path", methods=['GET', 'POST'])
+def path():
     input_data = list(request.form.values())
     values = [x for x in input_data]
 

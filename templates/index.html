@@ -11,7 +11,7 @@
 <body>
 
 <div class="data_part">
-    <form action="{{ url_for('predict') }}" method="post">
+    <form action="{{ url_for('path') }}" method="post">
         <select name="comp_select_source" class="Input" style="width:90%">
             {% for o in fma_list %}
                 <option value="{{ o.fmaID }}" {% if source == o.fmaID %} selected {% endif %}>{{ o.label }}</option>
