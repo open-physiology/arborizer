@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Arborizer</title>
+    <meta charset="utf-8">
+    <meta name="author" content="Natallia Kokash">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0,maximum-scale=1,user-scalable=no">
+    <link rel="stylesheet" href="static/style.css">
+</head>
+<body>
+
+<div class="data_part">
+    <form action="{{ url_for('predict') }}" method="post">
+        <select name="comp_select_source" class="Input" style="width:90%">
+            {% for o in fma_list %}
+                <option value="{{ o.fmaID }}" {% if source == o.fmaID %} selected {% endif %}>{{ o.label }}</option>
+            {% endfor %}
+        </select><br/><br/>
+        <select name="comp_select_target" class="Input" style="width:90%">
+            {% for o in fma_list %}
+                <option value="{{ o.fmaID }}" {% if target == o.fmaID %} selected {% endif %}> {{ o.label }}</option>
+            {% endfor %}
+        </select><br><br>
+        <button type="submit" class="pred-btn"> Show path </button>
+    </form>
+
+    <h3>{{ caption }}</h3>
+    {% for node in path %}
+        {{ node }} <br/>
+    {% endfor %}
+</div>
+
+</body>
+</html>
