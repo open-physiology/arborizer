@@ -30,7 +30,7 @@ h1 {
     font-size: 19px;
     color: rgb(49, 49, 49);
     padding-left: 8px;
-
+    overflow-y: auto;
 }
 
 ::placeholder {
