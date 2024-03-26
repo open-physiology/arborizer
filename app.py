@@ -11,6 +11,7 @@ app = Flask(__name__)
 login = json.load(open('./api_db.json', 'r'))
 neo4j_address, neo4j_pwd = (login.values())
 
+
 neo4j_db = NEO4JConnector(neo4j_address, "neo4j", neo4j_pwd)
 fma_list = neo4j_db.query_fma()
 
