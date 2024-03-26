@@ -12,18 +12,90 @@
 
 <div class="data_part">
     <form action="{{ url_for('path') }}" method="post">
-        <select name="comp_select_source" class="Input" style="width:90%">
+        <label for="sourceInput"></label>
+        <input type="text" placeholder="Select source node..." style="width:90%"
+               id="sourceInput" class="Input" name="sourceInput"
+               onkeyup="filterOptions('sourceInput', 'sourceDropdown')" onfocus="showDropdown('sourceDropdown')">
+        <div class="dropdown" style="width:90%">
+           <div id="sourceDropdown" class="dropdown-content">
             {% for o in fma_list %}
-                <option value="{{ o.fmaID }}" {% if source == o.fmaID %} selected {% endif %}>{{ o.label }}</option>
+                <a id="{{ o.fmaID }}" onclick="selectSourceOption({{o.fmaID}})">{{ o.fmaID }}: {{ o.name }}</a>
             {% endfor %}
-        </select><br/><br/>
-        <select name="comp_select_target" class="Input" style="width:90%">
+          </div>
+        </div>
+
+        <br><br>
+
+        <label for="targetInput"></label>
+        <input type="text" placeholder="Select target node..." style="width:90%"
+               id="targetInput" class="Input" name="targetInput"
+               onkeyup="filterOptions('targetInput', 'targetDropdown')" onfocus="showDropdown('targetDropdown')">
+        <div class="dropdown" style="width:90%">
+           <div id="targetDropdown" class="dropdown-content">
             {% for o in fma_list %}
-                <option value="{{ o.fmaID }}" {% if target == o.fmaID %} selected {% endif %}> {{ o.label }}</option>
+                <a id="{{ o.fmaID }}" onclick="selectTargetOption({{o.fmaID}})">{{ o.fmaID }}: {{ o.name }}</a>
             {% endfor %}
-        </select><br><br>
+          </div>
+        </div>
+
         <button type="submit" class="pred-btn"> Show path </button>
     </form>
+
+    <script>
+        const fmaList = {{ fma_list | tojson }};
+        const source = {{ source | tojson }};
+        const target = {{ target | tojson }};
+
+        function selectSourceOption(fmaID){
+            let option = fmaList.find(e => e.fmaID === fmaID.toString());
+            if (option){
+                let source = document.getElementById("sourceInput");
+                source.value = fmaID + ": " + option.name;
+                hideDropdown('sourceDropdown');
+            }
+        }
+
+        function selectTargetOption(fmaID){
+            let option = fmaList.find(e => e.fmaID === fmaID.toString());
+            if (option){
+                let target = document.getElementById("targetInput");
+                target.value = fmaID + ": " + option.name;
+                hideDropdown('targetDropdown');
+            }
+        }
+
+        function showDropdown(dropdownName) {
+          document.getElementById(dropdownName).classList.add("show");
+        }
+
+        function hideDropdown(dropdownName){
+          document.getElementById(dropdownName).classList.remove("show");
+        }
+
+        function toggleOptions(dropdownName, filter){
+            let a = document.getElementById(dropdownName).getElementsByTagName("a");
+            for (let i = 0; i < a.length; i++) {
+                let txtValue = a[i].textContent || a[i].innerText;
+                if (txtValue.toUpperCase().indexOf(filter) > -1) {
+                    a[i].style.display = "";
+                } else {
+                    a[i].style.display = "none";
+                }
+            }
+        }
+
+        function filterOptions(inputName, dropdownName) {
+            let input = document.getElementById(inputName);
+            let filter = input.value.toUpperCase();
+            toggleOptions(dropdownName, filter);
+        }
+
+        if (source && target) {
+            selectSourceOption(source);
+            selectTargetOption(target);
+        }
+
+    </script>
 
     <h3>{{ caption }}</h3>
     {% for node in path %}

@@ -82,25 +82,37 @@ class NEO4JConnector:
             return db_items[0]['a']
 
     # Retrieve path between 2 structures with given FMA IDs
+    # def query_path(self, source_fma, target_fma, session=None):
+    #     if session is None:
+    #         session = self.driver.session()
+    #     cql_node = """
+    #         MATCH p = ({fmaID: $source})-[:Connects*]->({fmaID: $target}) return nodes(p) as path unwind path as m match (m)-[]->(n) return m,n
+    #     """
+    #     nodes = session.run(cql_node, source=source_fma, target=target_fma)
+    #     db_items = [record for record in nodes.data()]
+    #     path = set()
+    #     res = []
+    #     for entry in db_items:
+    #         if "fmaID" in entry["m"]:
+    #             fma_id = entry["m"]["fmaID"]
+    #             if fma_id not in path:
+    #                 path.add(fma_id)
+    #                 res.append(fma_id + ": " + entry["m"]["name"])
+    #         elif "fmaID" in entry["n"]:
+    #             fma_id = entry["n"]["fmaID"]
+    #             res.append(fma_id + ": " + entry["n"]["name"])
+    #     return res
+
     def query_path(self, source_fma, target_fma, session=None):
         if session is None:
             session = self.driver.session()
-        cql_node = """
-            MATCH p = ({fmaID: $source})-[:Connects*]->({fmaID: $target}) with nodes(p) as path unwind path as m match (m)-[]->(n) return m,n
-        """
+        cql_node = """MATCH p = ({fmaID: $source})-[:Connects*]->({fmaID: $target}) return nodes(p) as m"""
         nodes = session.run(cql_node, source=source_fma, target=target_fma)
         db_items = [record for record in nodes.data()]
-        path = set()
         res = []
         for entry in db_items:
-            if "fmaID" in entry["m"]:
-                fma_id = entry["m"]["fmaID"]
-                if fma_id not in path:
-                    path.add(fma_id)
-                    res.append(fma_id + ": " + entry["m"]["name"])
-            elif "fmaID" in entry["n"]:
-                fma_id = entry["n"]["fmaID"]
-                res.append(fma_id + ": " + entry["n"]["name"])
+            for node in entry["m"]:
+                res.append(node["nodeID"] + ": " + node["name"])
         return res
 
     def query_fma(self, session=None):
@@ -111,7 +123,7 @@ class NEO4JConnector:
         db_items = [record for record in nodes.data()]
         res = []
         for entry in db_items:
-            res.append({"fmaID": entry["n"]["fmaID"], "label": entry["n"]["fmaID"] + ": " + entry["n"]["name"]})
+            res.append({"fmaID": entry["n"]["fmaID"], "name": entry["n"]["name"]})
         return res
 
     # Create
