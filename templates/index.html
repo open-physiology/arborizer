@@ -10,7 +10,7 @@
 </head>
 <body>
 
-<div class="data_part">
+<div class="data_caption">
     <form action="{{ url_for('path') }}" method="post">
         <label for="sourceInput"></label>
         <input type="text" placeholder="Select source node..." style="width:90%"
@@ -38,7 +38,7 @@
           </div>
         </div>
 
-        <button type="submit" class="pred-btn"> Show path </button>
+        <button type="submit" class="pred-btn"> Find path </button>
     </form>
 
     <script>
@@ -96,12 +96,20 @@
         }
 
     </script>
+</div>
 
+<div class="data_part" id="tree">
+</div>
+
+<div class="data_part">
     <h3>{{ caption }}</h3>
     {% for node in path %}
         {{ node }} <br/>
     {% endfor %}
 </div>
+
+{% include 'tree.html' %}
+
 
 </body>
 </html>
