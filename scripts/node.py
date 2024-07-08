@@ -1,16 +1,18 @@
 class Node(object):
     # generate new node
-    def __init__(self, node_id):
-        self.node_id = node_id
+    def __init__(self, id, name, data):
+        self.id = id
+        self.name = name
+        self.data = data
         self.children = []
 
     # append a child node to parent (self)
-    def child(self, child_id):
+    def child(self, id, name, data):
         # check if child already exists in parent
-        child_found = [c for c in self.children if c.node_id == child_id]
+        child_found = [c for c in self.children if c.id == id]
         if not child_found:
             # if it is a new child, create new node for this child
-            _child = Node(child_id)
+            _child = Node(id, name, data)
             # append new child node to parent's children list
             self.children.append(_child)
         else:
@@ -21,6 +23,4 @@ class Node(object):
 
     # convert the whole object to dict
     def as_dict(self):
-        res = {'nodeID': self.node_id}
-        res['children'] = [c.as_dict() for c in self.children]
-        return res
+        return {'id': self.id, 'name': self.name, 'data': self.data, 'children': [c.as_dict() for c in self.children]}

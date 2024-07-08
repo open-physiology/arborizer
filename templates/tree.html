@@ -1,30 +1,41 @@
 <script src="//d3js.org/d3.v3.min.js"></script>
+<div id="contextMenu" class="context-menu" style="display:none">
+    <ul>
+        <button onclick="moveUp()" class="menu-">Move up</button>
+        <br/>
+        <button onclick="moveDown()">Move down</button>
+    </ul>
+</div>
+
 <script>
     treeDiagram({{ data|safe }})
 
     function treeDiagram(root) {
-        var margin = {top: 20, right: 600, bottom: 20, left: 600},
-            width = 2000 - margin.right - margin.left,
-            height = 1600 - margin.top - margin.bottom;
+        let margin = {top: 20, right: 40, bottom: 20, left: 40},
+            width = 4000 - margin.right - margin.left,
+            height = 2000 - margin.top - margin.bottom;
 
-        var i = 0,
-            duration = 750,
-            root;
+        let i = 0, duration = 750;
 
-        var tree = d3.layout.tree()
+        let tree = d3.layout.tree()
             .size([width, height]);
 
-        var diagonal = d3.svg.diagonal()
+        let diagonal = d3.svg.diagonal()
             .projection(function (d) {
                 return [d.x, d.y];
             });
 
-        var svg = d3.select("#tree").append("svg")
+        let svg = d3.select("#tree").append("svg")
             .attr("width", width + margin.right + margin.left)
             .attr("height", height + margin.top + margin.bottom)
             .append("g")
             .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
+        let tooltip = d3.select("body").append("div")
+        .attr('id', 'tooltip').attr('class', 'tooltip')
+        .style("visibility", "hidden");
+
+        let contextMenu = document.getElementById("contextMenu");
 
         root.x0 = 0;
         root.y0 = width / 2;
@@ -34,7 +45,7 @@
         function update(source) {
 
             // Compute the new tree layout.
-            var nodes = tree.nodes(root).reverse(),
+            let nodes = tree.nodes(root).reverse(),
                 links = tree.links(nodes);
 
             // Normalize for fixed-depth.
@@ -43,13 +54,13 @@
             });
 
             // Update the nodes…
-            var node = svg.selectAll("g.node")
+            let node = svg.selectAll("g.node")
                 .data(nodes, function (d) {
                     return d.id || (d.id = ++i);
                 });
 
             // Enter any new nodes at the parent's previous position.
-            var nodeEnter = node.enter().append("g")
+            let nodeEnter = node.enter().append("g")
                 .attr("class", "node")
                 .attr("transform", function (d) {
                     return "translate(" + source.x0 + "," + source.y0 + ")";
@@ -58,20 +69,45 @@
             nodeEnter.append("circle")
                 .attr("r", 1e-6)
                 .style("fill", function (d) {
-                    return d._children ? "lightsteelblue" : "#fff";
-                });
+                    return d.data?.color || "lightsteelblue";
+                })
+              .on("mouseover", function(d){
+                  tooltip.text(d.name);
+                  return tooltip.style("visibility", "visible");})
+              .on("mousemove", function(){return tooltip.style("top", (d3.event.pageY-10)+"px").style("left",(d3.event.pageX+10)+"px");})
+              .on("mouseout", function(){return tooltip.style("visibility", "hidden");})
+              .on('contextmenu', d => onRightClick(d));
+
+            function hideMenu() {
+                contextMenu.style.display = "none"
+            }
+
+            function onRightClick(nodeID) {
+                console.log(nodeID);
+                d3.event.preventDefault();
+                console.log(contextMenu);
+                if (contextMenu.style.display == "block")
+                    hideMenu();
+                else {
+                    contextMenu.style.display = 'block';
+                    contextMenu.style.left = d3.event.clientX + 'px';
+                    contextMenu.style.top = d3.event.clientY + 'px';
+                }
+            }
 
             nodeEnter.append("text")
                 .attr("x", function (d) {
-                    return d.children || d._children ? -10 : 10;
+                    return d.children || d._children ? 10 : -10;
                 })
                 .attr("dy", ".35em")
-                .attr("text-anchor", function (d) {
-
-                    return d.children || d._children ? "end" : "start";
+                .attr("text-anchor", function (d,i) {
+                    return d.children || d._children ? "start" : "end";
                 })
                 .text(function (d) {
-                    return d.nodeID;
+                    if (!d.data.connector){
+                       return d.name.substring(0, 20);
+                    }
+                    return d.id;
                 })
                 .style("fill-opacity", 1e-6);
 
@@ -85,7 +121,7 @@
             nodeUpdate.select("circle")
                 .attr("r", 4.5)
                 .style("fill", function (d) {
-                    return d._children ? "lightsteelblue" : "#fff";
+                    return d.data?.color || "lightsteelblue";
                 });
 
             nodeUpdate.select("text")
@@ -117,12 +153,21 @@
                 .attr("d", function (d) {
                     var o = {x: source.x0, y: source.y0};
                     return diagonal({source: o, target: o});
-                });
+                })
+                .on("mouseover", function(d){
+                  tooltip.text(d.target.data?.conveyingLyph + " (" + d.target.data?.ontologyTerms + ")");
+                  return tooltip.style("visibility", "visible");})
+                .on("mousemove", function(){return tooltip.style("top", (d3.event.pageY-10)+"px").style("left",(d3.event.pageX+10)+"px");})
+                .on("mouseout", function(){return tooltip.style("visibility", "hidden");});
+
 
             // Transition links to their new position.
             link.transition()
                 .duration(duration)
-                .attr("d", diagonal);
+                .attr("d", diagonal)
+                .style("stroke", function (d) {
+                    return d.target.data?.color || "#ccc";
+                });
 
             // Transition exiting nodes to the parent's new position.
             link.exit().transition()
@@ -138,6 +183,14 @@
                 d.x0 = d.x;
                 d.y0 = d.y;
             });
+        }
+
+        function moveUp(e){
+            console.log(e);
+        }
+
+        function moveDown(e){
+            console.log(e);
         }
     }
 </script>

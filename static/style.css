@@ -73,8 +73,8 @@ h3 {
 }
 
 .data_part {
-    margin-top: 50px;
-    margin-left: 50px;
+    margin-top: 20px;
+    margin-left: 20px;
     border: 2px solid teal;
     border-radius: 10px;
     width: 100%;
@@ -177,3 +177,56 @@ h3 {
   stroke: #ccc;
   stroke-width: 1.5px;
 }
+
+.tooltip {
+    position: absolute;
+    padding: 2px;
+    z-index: 10;
+    background-color: #f5f5f5;
+    font: 12px sans-serif;
+    border: 1px solid #666;
+    pointer-events: none;
+}
+
+.context-menu {
+    position: absolute;
+    text-align: center;
+    background: lightgray;
+    border: 1px solid black;
+}
+
+.context-menu ul {
+    padding: 0px;
+    margin: 0px;
+    min-width: 100px;
+    list-style: none;
+}
+
+.context-menu ul li {
+    padding-bottom: 2px;
+    padding-top: 2px;
+    border: 1px solid #ccc;
+}
+
+.context-menu ul li a {
+    text-decoration: none;
+    color: black;
+}
+
+.context-menu ul li:hover {
+    background: darkgray;
+}
+
+.context-menu button {
+    width: 100px;
+    padding-bottom: 2px;
+    padding-top: 2px;
+    border: 1px solid #ccc;
+}
+
+.context-menu button:hover {
+    text-decoration: none;
+    color: black;
+    background: darkgray;
+}
+
