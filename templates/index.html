@@ -7,13 +7,124 @@
     <meta name="author" content="Natallia Kokash">
     <meta name="viewport" content="width=device-width, initial-scale=1.0,maximum-scale=1,user-scalable=no">
     <link rel="stylesheet" href="static/style.css">
+    <link rel="stylesheet" href="static/w3.css">
 </head>
 <body>
 
-<div class="data_part" id="tree">
-</div>
+    <div id="mainMenu" class="w3-sidebar w3-bar-block">
+       <button id="btnShow" class="w3-bar-item w3-hover-light-grey" title="Show vessels" onclick=openNav()>☰</button>
+       <button id="btnHide" class="w3-bar-item w3-hover-light-grey" style="display: none" title="Hide vessels" onclick=closeNav()>×</button>
+       <button id="btnApply" class="w3-bar-item w3-hover-light-grey" title="Apply changes"
+               onclick=applyChanges()>✓<span id="isChange" style="display: none; color: red;">*</span>
+       </button>
+    </div>
 
-{% include 'tree.html' %}
+    {% include 'list.html' %}
+    {% include 'tree.html' %}
+
+    <script>
+        const vessels = {{ vessels | safe }};
+        const groups = {{ groups | safe }};
+        const data = {{ data|safe }};
+
+        let vesselPanel = document.getElementById("vesselList");
+        let btnShow = document.getElementById("btnShow");
+        let btnHide = document.getElementById("btnHide");
+
+        let actions = [];
+        let treeDiagram = new Tree(data, groups, actions);
+        let tree = document.getElementById("tree");
+        let contextMenu = document.getElementById("listContextMenu");
+
+        vessels.forEach(vessel => {
+            let vesselOption = document.getElementById("vesselOption"+vessel.nodeID);
+            if (vesselOption) {
+                vesselOption.oncontextmenu = e => showMenu(e, vessel);
+            }
+        })
+
+        function showMenu(e, node){
+            e.preventDefault();
+            contextMenu.style.display = 'block';
+            contextMenu.style.left = e.pageX+'px';
+            contextMenu.style.top = e.pageY+'px';
+            let groupList  = Object.values(groups);
+            if (groupList.length > 0){
+                let ul = document.getElementById('ulAdd');
+                ul.innerHTML = '';
+                function renderGroupMenu(group) {
+                    let li = document.createElement('li');
+                    ul.appendChild(li);
+                    let btn = document.createElement('button');
+                    btn.onclick = e => addToGroup(node, group);
+                    btn.innerHTML = ">>" + group.name;
+                    li.appendChild(btn);
+                }
+                groupList.forEach(renderGroupMenu);
+            }
+        }
+
+        function filterOptions() {
+            let input, filter, ul, li, btn, i, txtValue;
+            input = document.getElementById("vesselInput");
+            filter = input.value.toUpperCase();
+            ul = document.getElementById("ulVessels");
+            li = ul.getElementsByTagName("li");
+            for (i = 0; i < li.length; i++) {
+                txtValue = li[i].innerHTML;
+                if (txtValue.toUpperCase().indexOf(filter) > -1) {
+                    li[i].style.display = "";
+                } else {
+                    li[i].style.display = "none";
+                }
+            }
+        }
+
+        document.addEventListener("click", function(e){
+            if (contextMenu.style.display === "block"){
+                hideListMenu();
+            }
+        });
+
+        function hideListMenu() {
+            contextMenu.style.display = "none"
+        }
+
+        function addToGroup(node, group){
+            hideListMenu();
+            let res = treeDiagram.addNode(node, group);
+            if (res){
+                //Disable added
+                let vesselOption = document.getElementById("vesselOption"+node.nodeID);
+                vesselOption.classList.add('disabled');
+                vesselOption.removeAttribute("onclick");
+            }
+        }
+
+        function saveAction(action, node) {
+            actions.push({"action": action, "node": node});
+        }
+
+        function openNav() {
+          vesselPanel.style.width = "600px";
+          tree.style.marginLeft = "650px";
+          tree.classList.add("w3-threequarter");
+          btnHide.style.display = "block";
+          btnShow.style.display = "none";
+        }
+
+        function closeNav() {
+          vesselPanel.style.width = "0";
+          tree.classList.remove("w3-threequarter");
+          tree.style.marginLeft = "50px";
+          btnHide.style.display = "none";
+          btnShow.style.display = "block";
+        }
+
+        async function applyChanges(){
+            await fetch("/edit?actions="+JSON.stringify(actions));
+        }
+    </script>
 
 </body>
 </html>

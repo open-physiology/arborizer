@@ -1,0 +1,26 @@
+<div id="listContextMenu" class="context-menu" style="display:none">
+    <ul id="ulAdd">
+         {% for group in groups %}
+            <li><button>
+                    >>{{ group.name }}
+                </button>
+            </li>
+         {% endfor %}
+    </ul>
+</div>
+
+<div id="vesselList" class="data_part w3-quarter">
+    <label for="vesselInput"></label>
+        <input type="text" style="width:100%"
+               id="vesselInput" class="Input" name="vesselInput" onkeyup="filterOptions()"/>
+    <ul id="ulVessels">
+        {% for node in vessels %}
+            <li id="vesselOption{{node.nodeID}}">
+                {{node.nodeID}}: ({{node.fmaID}}) {{node.name}}
+            </li>
+         {% endfor %}
+    </ul>
+</div>
+
+
+

@@ -1,28 +1,9 @@
-* {
-    font-family: Calibri Light;
-}
-
 body {
     background: linear-gradient(to right, rgb(50, 200, 200), rgb(150, 150, 150));
     height: 90vh;
     width: 90%;
     justify-content: center;
     text-align: center;
-}
-
-h1 {
-    text-align: center;
-    color: rgb(49, 49, 49);
-    margin-bottom: 30px;
-    margin-top: 10px;
-
-}
-
-::placeholder {
-    color: rgb(50, 50, 50);
-    font-size: 20px;
-    padding-left: 10px;
-
 }
 
 .pred-btn {
@@ -45,8 +26,11 @@ h1 {
     border: 2px solid black;
 }
 
-select option {
-    color: black;
+h1 {
+    text-align: center;
+    color: rgb(49, 49, 49);
+    margin-bottom: 30px;
+    margin-top: 10px;
 }
 
 h2 {
@@ -60,11 +44,20 @@ h3 {
     text-align: left;
 }
 
+::placeholder {
+    color: rgb(50, 50, 50);
+    font-size: 20px;
+    padding-left: 10px;
+}
+
+select option {
+    color: black;
+}
+
 .data_caption {
     margin-top: 30px;
     margin-left: 50px;
     border: 2px solid teal;
-    border-radius: 10px;
     width: 100%;
     height: 210px;
     background: white;
@@ -73,16 +66,27 @@ h3 {
 }
 
 .data_part {
-    margin-top: 20px;
-    margin-left: 20px;
     border: 2px solid teal;
-    border-radius: 10px;
     width: 100%;
-    height: 100%;
-    background: white;
+    height: 100vh;
+    margin-left: 50px;
+    margin-top: 10px;
     padding: 10px;
+    background: white;
     overflow: auto;
     text-align: left;
+}
+
+#mainMenu{
+    max-width: 42px;
+}
+
+#tree{
+    position: fixed !important;
+}
+
+#vesselList{
+    width: 600px;
 }
 
 @media screen {
@@ -93,28 +97,17 @@ h3 {
     .Input {
         margin-bottom: 5px;
     }
-
-    .data_part {
-        color: black;
-        padding: 10px;
-        margin-left: 50px;
-        margin-top: 20px;
-        margin-bottom: 30px;
-        border-radius: 10px;
-    }
 }
 
 /* The search field */
 .Input {
-    height: 45px;
-    width: 230px;
-    margin-left: 10px;
+    height: 30px;
+    width: 300px;
     border: 2px;
     margin-bottom: 5px;
     background: transparent;
     box-sizing: border-box;
     font-size: 16px;
-    padding: 14px 20px 12px 45px;
     border: none;
     border-bottom: 1px solid rgb(50, 200, 200);
 }
@@ -203,8 +196,6 @@ h3 {
 }
 
 .context-menu ul li {
-    padding-bottom: 2px;
-    padding-top: 2px;
     border: 1px solid #ccc;
 }
 
@@ -218,7 +209,8 @@ h3 {
 }
 
 .context-menu button {
-    width: 100px;
+    min-width: 100px;
+    width: 100%;
     padding-bottom: 2px;
     padding-top: 2px;
     border: 1px solid #ccc;
@@ -230,3 +222,30 @@ h3 {
     background: darkgray;
 }
 
+.disabled{
+    pointer-events:none;
+    opacity:0.4;
+    text-decoration-line: line-through;
+}
+
+.data_part ul {
+    padding: 0;
+    margin: 0;
+    min-width: 100px;
+    list-style: none;
+}
+
+.data_part ul li:hover {
+    background: darkgray;
+}
+
+.data_part button {
+    width: 100%;
+    text-align: left;
+}
+
+.data_part button:hover {
+    text-decoration: none;
+    color: red;
+    background: darkgray;
+}
