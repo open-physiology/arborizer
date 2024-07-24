@@ -17,12 +17,22 @@ branches = []
 groups = {}
 
 
+def get_vascular_targets(node_map, edges):
+    used_set = set()
+    for edge in edges:
+        used_set.add(edge["source"])
+        used_set.add(edge["target"])
+    nodes = []
+    for obj in node_map.values():
+        if obj["nodeID"] not in used_set:
+            nodes.append(obj)
+    return nodes
+
+
 def create_tree():
+    global vessel_map_all, branches
     vessel_map_all = mysql_db.query_vascular_nodes_map()
     branches = mysql_db.query_vascular_edges()
-
-    def get_label(source_name, target_name, order):
-        return source_name + " -> " + target_name
 
     node_map = {}
 
@@ -34,7 +44,7 @@ def create_tree():
         def create_node(x_id):
             if x_id not in node_map:
                 x = vessel_map_all[x_id]
-                node_map[x["nodeID"]] = {"id": x_id, "name": x["name"], "ontologyTerms": "FMA:" + x["fmaID"]}
+                node_map[x["nodeID"]] = {"id": x_id, "name": x["name"], "fmaID": x["fmaID"]}
 
         create_node(s_id)
         create_node(t_id)
@@ -72,7 +82,7 @@ def create_tree():
             lnk_id = "lnk-" + s["id"] + "_" + t_id
             lnk = {
                 "id": lnk_id, "conveyingLyph": lyph_template, "source": s["id"], "target": t_id,
-                "ontologyTerms": "FMA:" + t["ontologyTerms"], "color": color, "group": group_id,
+                "fmaID": t["fmaID"], "color": color, "group": group_id,
                 "order": 0, "branch": branch["id"]
             }
             tree.append(lnk)
@@ -88,15 +98,15 @@ def create_tree():
             if count > 2:
                 m_id = test
 
-            m_label = get_label(source_name, t["name"], order)
+            m_label = source_name + " -> " + t["name"]
 
             # Create connector nodes
-            node_map[m_id] = {"id": m_id, "name": m_label, "ontologyTerms": ""}
+            node_map[m_id] = {"id": m_id, "name": m_label, "fmaID": ""}
 
             lnk1_id = "lnk-" + s["id"] + "_" + m_id
             lnk1 = {
                 "id": lnk1_id, "conveyingLyph": lyph_template, "source": s["id"], "target": m_id,
-                "ontologyTerms": "FMA:" + branch['source_fma'], "color": color, "group": group_id,
+                "fmaID": branch['source_fma'], "color": color, "group": group_id,
                 "connector": 1, "order": order, "branch": branch["id"]
             }
 
@@ -105,7 +115,7 @@ def create_tree():
             lnk2_id = "lnk-" + m_id + "_" + t_id
             lnk2 = {
                 "id": lnk2_id, "conveyingLyph": lyph_id, "source": m_id, "target": t_id,
-                "ontologyTerms": "FMA:" + branch["target_fma"], "color": color, "group": group_id, "branch": branch["id"]
+                "fmaID": branch["target_fma"], "color": color, "group": group_id, "branch": branch["id"]
             }
 
             tree.append(lnk1)
@@ -137,7 +147,7 @@ def update_db(actions):
 @app.route('/')
 def index():
     root = create_tree()
-    vessels = mysql_db.query_vascular_targets(branches)
+    vessels = get_vascular_targets(vessel_map_all, branches)
     return render_template('index.html', data=json.dumps(root.as_dict()), groups=groups, vessels=vessels)
 
 
@@ -149,7 +159,7 @@ def edit():
     mysql_db_edit.execute_actions(actions)
 
     root = create_tree()
-    vessels = mysql_db.query_vascular_targets(branches)
+    vessels = get_vascular_targets(vessel_map_all, branches)
     return render_template('index.html', data=json.dumps(root.as_dict()), groups=groups, vessels=vessels)
 
 

@@ -8,32 +8,17 @@ class MySQLConnector:
 
     # To construct vascular tree
     test_mode = True
+    results = []
 
     # Get all vessels
     def query_vascular_nodes_map(self):
         cursor = self.driver.cursor()
-        query = """SELECT node_id, fma_id, name FROM master_vascular_vessels"""
+        query = """SELECT node_id, fma_id, name, vessel_type FROM master_vascular_vessels"""
         cursor.execute(query)
         nodes = {}
         for item in cursor:
-            obj = {"nodeID": str(item[0]), "fmaID": str(item[1]), "name": item[2]}
+            obj = {"nodeID": str(item[0]), "fmaID": str(item[1]), "name": item[2], "vesselType": str(item[3])}
             nodes[obj["nodeID"]] = obj
-        return nodes
-
-    # Get all vessels that are not in the tree
-    def query_vascular_targets(self, edges):
-        used_set = set()
-        for edge in edges:
-            used_set.add(edge["source"])
-            used_set.add(edge["target"])
-        cursor = self.driver.cursor()
-        query = """SELECT node_id, fma_id, name FROM master_vascular_vessels"""
-        cursor.execute(query)
-        nodes = []
-        for item in cursor:
-            obj = {"nodeID": str(item[0]), "fmaID": str(item[1]), "name": item[2]}
-            if obj["nodeID"] not in used_set:
-                nodes.append(obj)
         return nodes
 
     # Get all edges to construct the vascular tree
@@ -91,17 +76,24 @@ class MySQLConnector:
             if action_type == ActionType.REMOVE:
                 self.remove_edge(params)
             elif action_type == ActionType.MOVE_UP or action_type == ActionType.MOVE_DOWN:
-                self.change_order(params)
+                self.move_up_or_down(params)
+            elif action_type == ActionType.ADD_ORDER:
+                self.add_order(params)
+            elif action_type == ActionType.REMOVE_ORDER:
+                self.remove_order(params)
             elif action_type == ActionType.MOVE_TO_GROUP:
                 self.move_to_group(params)
+            elif action_type == ActionType.ADD_TO_GROUP:
+                self.add_to_group(params)
+
         self.driver.commit()
 
-    # Remove edge from master_vascular, complete
+    # Remove edge from master_vascular (tested)
     def remove_edge(self, params):
         branch_id = params[0]
         query = """DELETE from master_vascular WHERE ID={0}""".format(branch_id)
         cursor = self.driver.cursor()
-        self.test_mode and print(query) or cursor.execute(query)
+        cursor.execute(query)
         print("REMOVE, affected rows: ", cursor.rowcount)
         self.decrease_order(params[0].main, params[0].sequence)
 
@@ -109,11 +101,11 @@ class MySQLConnector:
     def decrease_order(self, main, start):
         query = """UPDATE master_vascular SET sequence = sequence - 1 WHERE MAIN={0} and sequence>{1}""".format(main, start)
         cursor = self.driver.cursor()
-        self.test_mode and print(query) or cursor.execute(query)
+        cursor.execute(query)
         print("ADJUST ORDER, affected rows: ", cursor.rowcount)
 
     # Swap order of two edges, TEST needed
-    def change_order(self, params):
+    def move_up_or_down(self, params):
         branch_id1 = params[0]["branch"]
         sequence1 = params[0]["order"]
         branch_id2 = params[1]["branch"]
@@ -123,13 +115,13 @@ class MySQLConnector:
             return
         query = """UPDATE master_vascular SET sequence={0} WHERE ID={1}""".format(sequence1, branch_id1)
         cursor = self.driver.cursor()
-        self.test_mode and print(query) or cursor.execute(query)
-        print("MOVE-UP(1), affected rows: ", cursor.rowcount)
+        cursor.execute(query)
+        print("MOVE (1), affected rows: ", cursor.rowcount)
         query = """UPDATE master_vascular SET sequence={0} WHERE ID={1}""".format(sequence2, branch_id2)
-        self.test_mode and print(query) or cursor.execute(query)
-        print("MOVE-UP(2), affected rows: ", cursor.rowcount)
+        cursor.execute(query)
+        print("MOVE (2), affected rows: ", cursor.rowcount)
 
-    # Place edge to another group - TEST
+    # Place edge to another group - TEST needed
     def move_to_group(self, params):
         branch_id = params[0].branch
         sequence = params[0].order
@@ -139,19 +131,54 @@ class MySQLConnector:
         print(branch_id, new_main)
         query = """UPDATE master_vascular SET main={0}, sequence={1} WHERE ID={2}""".format(new_main, sequence, branch_id)
         cursor = self.driver.cursor()
-        self.test_mode and print(query) or cursor.execute(query)
+        cursor.execute(query)
         print("MOVE-GROUP, affected rows: ", cursor.rowcount)
         self.decrease_order(old_main, old_order)
 
-    # Add order to an unordered branch - TEST
+    # Add a new connection to the vascular network (tested)
+    def add_to_group(self, params):
+        source = params[0]
+        target = params[1]
+        order = params[2]
+        cursor = self.driver.cursor()
+        query = """SELECT max(id) as max_id FROM master_vascular"""
+        cursor.execute(query)
+        max_id = None
+        for value in cursor:
+            max_id = value[0]
+        if not max_id:
+            print("Failed to retrieve an ID for a new record!")
+            return
+        cursor = self.driver.cursor()
+        query = """INSERT INTO master_vascular (
+            ID, MAIN, vl1originalID, vl1originalvesselname, BRANCH, vl2originalID, vl2originalvesselname, vessel_type, sequence) 
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"""
+        print("New record: ", max_id + 1)
+        values = (max_id + 1, source["nodeID"], source["fmaID"], source["name"], target["nodeID"], target["fmaID"], target["name"], target["vesselType"], order)
+        try:
+            cursor.execute(query, values)
+        except Exception as e:
+            print("Failed to add a new connection to the master_vascular!")
+            print(e)
+
+    # Add order to an unordered branch - TEST needed
     def add_order(self, params):
         branch_id = params[0].branch
         sequence = params[0].order
         query = """UPDATE master_vascular SET sequence={0} WHERE ID={1}""" \
             .format(sequence, branch_id)
         cursor = self.driver.cursor()
-        self.test_mode and print(query) or cursor.execute(query)
+        cursor.execute(query)
         print("ADD-ORDER, affected rows: ", cursor.rowcount)
 
+    # Remove the order - TEST needed
     def remove_order(self, params):
-        pass
+        branch_id = params[0].branch
+        query = """UPDATE master_vascular SET sequence=0 WHERE ID={1}""".format(branch_id)
+        cursor = self.driver.cursor()
+        cursor.execute(query)
+        print("REMOVE-ORDER, affected rows: ", cursor.rowcount)
+        # Adjust follow up orders
+        main = params[0].source.split('_')[0]
+        old_order = params[1]
+        self.decrease_order(main, old_order)

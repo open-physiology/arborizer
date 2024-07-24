@@ -70,8 +70,9 @@ class Tree {
                     if (d.data.order){
                         this.decreaseTailOrder(d.children[1]);
                     }
+                } else {
+                    d.parent.children.pop();
                 }
-                //NK TODO Add removed vessel to a list?
                 this.update(this.root);
             }
         }
@@ -82,7 +83,7 @@ class Tree {
     moveUp(d) {
         if (d.parent?.parent) {
             let pred = d.parent.parent;
-            if (pred.data.group === d.data.group) {
+            if (d.parent.data.group === d.data.group) {
                 d.data.order -= 1;
                 d.parent.data.order += 1;
                 d3.select("#node_"+d.id).remove();
@@ -150,7 +151,9 @@ class Tree {
             curr.children.push(d);
 
             d3.select("#node_"+d.id).remove();
-            d3.select("#node_"+d.children[1].id).remove();
+            if (d.children?.length > 1){
+                d3.select("#node_"+d.children[1].id).remove();
+            }
 
             this.saveAction(ActionType.MOVE_TO_GROUP, d.data, groupRoot, oldOrder);
             this.update(this.root);
@@ -211,7 +214,7 @@ class Tree {
                 curr.children.push(d);
                 d.parent = curr;
             }
-            this.saveAction(ActionType.REMOVE_ORDER, d.data.branch, oldOrder);
+            this.saveAction(ActionType.REMOVE_ORDER, d.data, oldOrder);
             this.update(this.root);
         }
         this.hideMenu();
@@ -227,7 +230,8 @@ class Tree {
         }
     }
 
-    addNode(node, group){
+    // Add node to a group
+    addNode(target, group){
         let groupRoot = this.findNode(group.id.substring(2));
         if (groupRoot?.children) {
             let curr = groupRoot.children[0];
@@ -236,23 +240,23 @@ class Tree {
             }
 
             let s_id = curr.id;
-            let t_id = node.nodeID;
+            let t_id = target.nodeID;
             let m_id = s_id + "_" + t_id;
             let color = curr.data.color;
 
             let lnk1_id = "lnk-" + s_id + "_" + m_id
             let order = curr.data.order? curr.data.order + 1: 0;
-            let lnk1_name = curr.name + " to " + node.name
+            let lnk1_name = curr.name + " to " + target.name
             let lnk1 = {
-                "id": lnk1_id, "name": lnk1_name, "source": s_id, "target": m_id, "ontologyTerms": curr.data.ontologyTerms,
-                "color": color, "group": group.id, "connector": 1, "order": order
+                "id": lnk1_id, "name": lnk1_name, "source": s_id, "target": m_id,
+                "fmaID": curr.data.fmaID, "color": color, "group": group.id, "connector": 1, "order": order
             }
 
-            let lyph_id = "lyph-" + node.fmaID;
+            let lyph_id = "lyph-" + target.fmaID;
             let lnk2_id = "lnk-" + m_id + "_" + t_id
             let lnk2 = {
-                "id": lnk2_id, "name": node.name, "conveyingLyph": lyph_id, "source": m_id, "target": t_id,
-                "ontologyTerms": "FMA:" + node.fmaID, "color": color, "group": group.id
+                "id": lnk2_id, "name": target.name, "conveyingLyph": lyph_id, "source": m_id, "target": t_id,
+                "fmaID": target.fmaID, "color": color, "group": group.id
             }
 
             let d = {
@@ -272,7 +276,9 @@ class Tree {
             d.children.push(d2);
             curr.children.push(d);
 
-            this.saveAction(ActionType.ADD_TO_GROUP, {...lnk1}, {...lnk2}, group);
+            let source = {"nodeID": groupRoot.id, "name": groupRoot.name, "fmaID": groupRoot.data.fmaID}
+
+            this.saveAction(ActionType.ADD_TO_GROUP, source, target, order);
             this.update(this.root);
             return true;
         }
@@ -323,7 +329,7 @@ class Tree {
         nodeEnter.append("circle")
             .attr("r", 1e-6)
             .on("mouseover", d => {
-                tooltip.text((d.data?.ontologyTerms ? d.data.ontologyTerms + ": " : "") + d.name);
+                tooltip.text((d.data?.fmaID ? "FMA: " + d.data.fmaID + ": " : "") + d.name);
                 return tooltip.style("visibility", "visible");
             })
             .on("mousemove", d => tooltip.style("top", (d3.event.pageY - 10) + "px").style("left", (d3.event.pageX + 10) + "px"))
@@ -351,7 +357,8 @@ class Tree {
             btnRemoveOrder.style.display = "none";
 
             // Actions are applied to connector nodes in a group
-            if (d.data && d.data.connector && d.data.group && d.children?.length >= 0){
+            // NK it is important not to allow actions on a newly added branch - no row ID exists
+            if (d.data && d.data.connector && d.data.branch && d.data.group && d.children?.length >= 0){
 
                 btnRemove.onclick = e => this.removeNode(d);
                 btnMoveUp.onclick = e => this.moveUp(d);
@@ -365,7 +372,7 @@ class Tree {
                     btnMoveUp.style.display = "block";
                 }
                 // Can move down if not the last
-                if (d.data.order && d.children?.length >= 1) {
+                if (d.data.order && d.children?.length > 1) {
                     btnMoveDown.style.display = "block";
                 }
                 if (!d.data?.order) {
@@ -462,7 +469,7 @@ class Tree {
                 return diagonal({source: o, target: o});
             })
             .on("mouseover", d => {
-                tooltip.text(d.target.data?.conveyingLyph + " (" + d.target.data?.ontologyTerms + ")");
+                tooltip.text(d.target.data?.conveyingLyph + " (" + d.target.data?.fmaID + ")");
                 return tooltip.style("visibility", "visible");
             })
             .on("mousemove", d => {
