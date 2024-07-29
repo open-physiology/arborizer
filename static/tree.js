@@ -53,9 +53,7 @@ class Tree {
 
     saveAction(action, ...params) {
         let isChange = document.getElementById("isChange");
-        if (isChange) {
-            isChange.style.display = 'block';
-        }
+        isChange.style.display = 'inline';
         this.actions.push({"action": action, "params": params});
     }
 
@@ -63,18 +61,16 @@ class Tree {
     removeNode(d) {
         if (d.parent) {
             let n = d.parent.children?.length;
-            if (n > 0) {
-                this.saveAction(ActionType.REMOVE, d.data.branch);
-                if (d.children?.length > 1) {
-                    d.parent.children[n - 1] = d.children[1];
-                    if (d.data.order){
-                        this.decreaseTailOrder(d.children[1]);
-                    }
-                } else {
-                    d.parent.children.pop();
+            if (d.children?.length > 1) {
+                d.parent.children[n - 1] = d.children[1];
+                if (d.data.order){
+                    this.decreaseTailOrder(d.children[1]);
                 }
-                this.update(this.root);
+            } else {
+                d.parent.children.pop();
             }
+            this.saveAction(ActionType.REMOVE, d.data);
+            this.update(this.root);
         }
         this.hideMenu();
     }
@@ -89,7 +85,8 @@ class Tree {
                 d3.select("#node_"+d.id).remove();
                 d3.select("#node_"+d.parent.id).remove();
 
-                pred.children[1] = d;
+                let n = pred.children.length;
+                pred.children[n - 1] = d;
                 let next = d.children[1];
                 d.children[1] = d.parent;
                 d.parent.children[1] = next;
@@ -104,14 +101,17 @@ class Tree {
 
     // Move a node down => swap sequences of two edges in the DB
     moveDown(d) {
-        if (d.children?.length > 1 && d.parent) {
+        if (d.parent && d.children?.length > 1) {
             d.data.order += 1;
             d.children[1].data.order -= 1;
+
             d3.select("#node_"+d.id).remove();
             d3.select("#node_"+d.children[1].id).remove();
 
-            d.parent.children[1] = d.children[1];
+            let n = d.parent.children.length;
+            d.parent.children[n - 1] = d.children[1];
             d.children[1].parent = d.parent;
+
             let next = d.children[1].children[1];
             d.children[1].children[1] = d;
             d.parent = d.children[1];
@@ -130,9 +130,11 @@ class Tree {
             while (curr.children?.length > 1 && curr.children[1].data.group === group.id) {
                 curr = curr.children[1];
             }
-            let n = d.parent.children?.length;
-            if (n > 0) {
-                d.parent.children[n - 1] = d.children[1];
+            let n = d.parent.children.length;
+            if (d.children?.length > 1) {
+                d.parent.children[n-1] = d.children[1];
+            } else {
+                d.parent.children.pop();
             }
             let oldOrder = d.data.order;
             if (d.children?.length > 1) {
@@ -143,95 +145,29 @@ class Tree {
                 }
             }
             d.parent = curr;
+            d.disabled = true;
             d.data.group = group.id;
             d.data.order = 0;
             if (curr.data.order) {
                 d.data.order = curr.data.order + 1;
             }
+            curr.children = curr.children || [];
             curr.children.push(d);
 
             d3.select("#node_"+d.id).remove();
             if (d.children?.length > 1){
                 d3.select("#node_"+d.children[1].id).remove();
             }
+            let source = {"nodeID": groupRoot.id, "name": groupRoot.name, "fmaID": groupRoot.data.fmaID}
 
-            this.saveAction(ActionType.MOVE_TO_GROUP, d.data, groupRoot, oldOrder);
+            this.saveAction(ActionType.MOVE_TO_GROUP, d.data, source, oldOrder);
             this.update(this.root);
         }
         this.hideMenu();
-    }
-
-    addOrder(d){
-        if (!d.parent){
-            return;
-        }
-        let order = 1;
-        let curr = d;
-        while (curr.parent && !curr.data.order){
-            curr = curr.parent;
-        }
-        if (curr.id !== d.id){
-            order = curr.data.order + 1;
-            if (d.children.length > 1) {
-                d.parent.children[1] = d.children[1];
-                d.children[1] = d.parent;
-            } else {
-                d.parent.children.pop();
-            }
-            let tmp = curr.children[1];
-            curr.children[1] = d;
-            d.parent = curr;
-            if (d.children.length > 1) {
-                d.children[1] = tmp;
-            } else {
-                d.children.push(tmp);
-            }
-            tmp.parent = d;
-        }
-        d.data.order = order;
-        d3.select("#node_"+d.id).remove();
-        this.saveAction(ActionType.ADD_ORDER, d.data);
-        this.update(this.root);
-        this.hideMenu();
-    }
-
-    removeOrder(d){
-        if (d.data?.order) {
-            let oldOrder = d.data.order;
-            d.data.order = 0;
-            d3.select("#node_"+d.id).remove();
-
-            this.decreaseTailOrder(d);
-            let curr = d;
-            while (curr.children?.length > 1){
-                curr = curr.children[1];
-            }
-            if (d.children?.length > 1 && curr.id !== d.id) {
-                d.parent.children[1] = d.children[1];
-                d.children[1].parent = d.parent;
-
-                d.children.pop();
-                curr.children.push(d);
-                d.parent = curr;
-            }
-            this.saveAction(ActionType.REMOVE_ORDER, d.data, oldOrder);
-            this.update(this.root);
-        }
-        this.hideMenu();
-    }
-
-    // Decrease order of updated node ancestors
-    decreaseTailOrder(d){
-        let curr = d;
-        while (curr.children?.length > 1 && curr.children[1].data.order > 0){
-            curr = curr.children[1];
-            curr.data.order -= 1;
-            d3.select("#node_"+curr.id).remove();
-        }
     }
 
     // Add node to a group
-    addNode(target, group){
+    addToGroup(target, group){
         let groupRoot = this.findNode(group.id.substring(2));
         if (groupRoot?.children) {
             let curr = groupRoot.children[0];
@@ -274,6 +210,7 @@ class Tree {
                 "data": lnk2
             }
             d.children.push(d2);
+            curr.children = curr.children || [];
             curr.children.push(d);
 
             let source = {"nodeID": groupRoot.id, "name": groupRoot.name, "fmaID": groupRoot.data.fmaID}
@@ -281,6 +218,80 @@ class Tree {
             this.saveAction(ActionType.ADD_TO_GROUP, source, target, order);
             this.update(this.root);
             return true;
+        }
+    }
+
+    addOrder(d){
+        if (!d.parent){
+            return;
+        }
+        let order = 1;
+        let curr = d;
+        while (curr.parent && !curr.data.order){
+            curr = curr.parent;
+        }
+        if (curr.id !== d.id){
+            order = curr.data.order + 1;
+            if (d.children.length > 1) {
+                let n = d.parent.children.length;
+                d.parent.children[n - 1] = d.children[1];
+                d.children[1] = d.parent;
+            } else {
+                d.parent.children.pop();
+            }
+            let tmp = curr.children[1];
+            curr.children[1] = d;
+            d.parent = curr;
+            if (d.children.length > 1) {
+                d.children[1] = tmp;
+            } else {
+                d.children.push(tmp);
+            }
+            tmp.parent = d;
+        }
+        d.data.order = order;
+        d3.select("#node_"+d.id).remove();
+        this.saveAction(ActionType.ADD_ORDER, d.data);
+        this.update(this.root);
+        this.hideMenu();
+    }
+
+    removeOrder(d){
+        if (d.data?.order) {
+            let oldOrder = d.data.order;
+            d.data.order = 0;
+            d3.select("#node_"+d.id).remove();
+
+            this.decreaseTailOrder(d);
+            let curr = d;
+            while (curr.children?.length > 1){
+                curr = curr.children[1];
+            }
+            if (curr.id !== d.id) {
+                let n = d.parent.children.length;
+                if (d.children?.length > 1) {
+                    d.parent.children[n - 1] = d.children[1];
+                    d.children[1].parent = d.parent;
+                } else {
+                    d.parent.children.pop();
+                }
+                d.children.pop();
+                curr.children.push(d);
+                d.parent = curr;
+            }
+            this.saveAction(ActionType.REMOVE_ORDER, d.data, oldOrder);
+            this.update(this.root);
+        }
+        this.hideMenu();
+    }
+
+    // Decrease order of updated node ancestors
+    decreaseTailOrder(d){
+        let curr = d;
+        while (curr.children?.length > 1 && curr.children[1].data.order > 0){
+            curr.data.order -= 1;
+            d3.select("#node_"+curr.id).remove();
+            curr = curr.children[1];
         }
     }
 
@@ -334,7 +345,8 @@ class Tree {
             })
             .on("mousemove", d => tooltip.style("top", (d3.event.pageY - 10) + "px").style("left", (d3.event.pageX + 10) + "px"))
             .on("mouseout", d => tooltip.style("visibility", "hidden"))
-            .on('contextmenu', d => onRightClick(d));
+            .on('contextmenu', d => onRightClick(d))
+            .on('click', d => console.log(d));
 
         const onRightClick = d => {
             d3.event.preventDefault();
@@ -372,19 +384,18 @@ class Tree {
                     btnMoveUp.style.display = "block";
                 }
                 // Can move down if not the last
-                if (d.data.order && d.children?.length > 1) {
+                if (d.children?.length > 1 && d.children[1].data.order) {
                     btnMoveDown.style.display = "block";
                 }
                 if (!d.data?.order) {
                     // Can add order if there is no order
                     btnAddOrder.style.display = "block";
                 } else {
-                    // Can remove order if there is order
                     btnRemoveOrder.style.display = "block";
                 }
 
                 let groupList = Object.values(this.groups);
-                if (groupList.length > 0) {
+                if (groupList.length > 0 && d.data.order > 1) {
                     let ul = document.getElementById('ulChange');
                     ul.innerHTML = '';
 

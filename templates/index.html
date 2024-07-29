@@ -11,30 +11,46 @@
 </head>
 <body>
 
-    <div id="mainMenu" class="w3-sidebar w3-bar-block">
-       <button id="btnShow" class="w3-bar-item w3-hover-light-grey" title="Show vessels" onclick=openNav()>☰</button>
-       <button id="btnHide" class="w3-bar-item w3-hover-light-grey" style="display: none" title="Hide vessels" onclick=closeNav()>×</button>
-       <button id="btnApply" class="w3-bar-item w3-hover-light-grey" title="Apply changes"
-               onclick=applyChanges()>✓<span id="isChange" style="display: none; color: red;">*</span>
-       </button>
+    <div id="mainMenu" class="w3-sidebar w3-bar-block toolbar">
+       <div class="w3-border">
+            <button id="btnBackup" class="w3-bar-item w3-hover-light-grey" title="Create backup" onclick=backup()>▤</button>
+            <button id="btnRestore" class="w3-bar-item w3-hover-light-grey" title="Restore from backup" onclick=restore()>⮐</button>
+       </div>
+       <div class="w3-border">
+           <button id="btnShow" class="w3-bar-item w3-hover-light-grey" title="Show vessels" onclick=openNav()>☰</button>
+           <button id="btnHide" class="w3-bar-item w3-hover-light-grey" style="display: none" title="Hide vessels" onclick=closeNav()>×</button>
+           <button id="btnApply" class="w3-bar-item w3-hover-light-grey" title="Apply changes"
+                   onclick=applyChanges()>✓<span id="isChange" style="display: none; color: red;">*</span>
+           </button>
+       </div>
     </div>
 
     {% include 'list.html' %}
     {% include 'tree.html' %}
 
     <script>
-        const vessels = {{ vessels | safe }};
-        const groups = {{ groups | safe }};
-        const data = {{ data|safe }};
-
         let vesselPanel = document.getElementById("vesselList");
         let btnShow = document.getElementById("btnShow");
         let btnHide = document.getElementById("btnHide");
+        let isChange = document.getElementById("isChange");
+        let btnRestore = document.getElementById("btnRestore");
+        let contextMenu = document.getElementById("listContextMenu");
+        let tree = document.getElementById("tree");
+
+        document.addEventListener("click", function(e){
+            if (contextMenu.style.display === "block"){
+                hideListMenu();
+            }
+        });
 
         let actions = [];
-        let treeDiagram = new Tree(data, groups, actions);
-        let tree = document.getElementById("tree");
-        let contextMenu = document.getElementById("listContextMenu");
+        let treeDiagram;
+
+        const vessels = {{ vessels | safe }};
+        const groups = {{ groups | safe }};
+        const data = {{ data | safe }};
+
+        treeDiagram = new Tree(data, groups, actions);
 
         vessels.forEach(vessel => {
             let vesselOption = document.getElementById("vesselOption"+vessel.nodeID);
@@ -80,19 +96,13 @@
             }
         }
 
-        document.addEventListener("click", function(e){
-            if (contextMenu.style.display === "block"){
-                hideListMenu();
-            }
-        });
-
         function hideListMenu() {
             contextMenu.style.display = "none"
         }
 
         function addToGroup(node, group){
             hideListMenu();
-            let res = treeDiagram.addNode(node, group);
+            let res = treeDiagram.addToGroup(node, group);
             if (res){
                 //Disable added
                 let vesselOption = document.getElementById("vesselOption"+node.nodeID);
@@ -121,8 +131,17 @@
           btnShow.style.display = "block";
         }
 
+        async function backup(){
+            await fetch("/backup");
+        }
+
+        async function restore(){
+            await fetch("/restore");
+        }
+
         async function applyChanges(){
             await fetch("/edit?actions="+JSON.stringify(actions));
+            isChange.style.display = 'none';
         }
     </script>
 

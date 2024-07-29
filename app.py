@@ -7,14 +7,14 @@ app = Flask(__name__)
 
 login = json.load(open('./credentials/api_mysql_db_nk.json', 'r'))
 db_name, db_user, db_pwd, db_server, db_port = (login.values())
-mysql_db = MySQLConnector(db_name, db_user, db_pwd, db_server, db_port)
 
-# Build tree
-# All graph for editing tree
+mysql_db = MySQLConnector(db_name, db_user, db_pwd, db_server, db_port)
 
 vessel_map_all = {}
 branches = []
 groups = {}
+root = {}
+vessels = []
 
 
 def get_vascular_targets(node_map, edges):
@@ -30,10 +30,11 @@ def get_vascular_targets(node_map, edges):
 
 
 def create_tree():
-    global vessel_map_all, branches
+    global mysql_db, vessel_map_all, branches, groups, root, vessels
+
     vessel_map_all = mysql_db.query_vascular_nodes_map()
     branches = mysql_db.query_vascular_edges()
-
+    groups = {}
     node_map = {}
 
     for branch in branches:
@@ -136,30 +137,49 @@ def create_tree():
         parent = nodes[edge["source"]]
         child = parent.child(edge["target"], node_map[edge["target"]]["name"], edge)
         nodes[child.id] = child
-    return root
-
-
-def update_db(actions):
-   for action in actions:
-       print(action)
 
 
 @app.route('/')
 def index():
-    root = create_tree()
+    global mysql_db, root, vessels
+    mysql_db = MySQLConnector(db_name, db_user, db_pwd, db_server, db_port)
+    create_tree()
     vessels = get_vascular_targets(vessel_map_all, branches)
     return render_template('index.html', data=json.dumps(root.as_dict()), groups=groups, vessels=vessels)
 
 
 @app.route('/edit', methods=['GET', 'POST'])
 def edit():
+    global mysql_db, root, vessels
+    mysql_db = MySQLConnector(db_name, db_user, db_pwd, db_server, db_port)
+
     actions = json.loads(request.args.get('actions'))
+    mysql_db.execute_actions(actions)
 
-    mysql_db_edit = MySQLConnector(db_name, db_user, db_pwd, db_server, db_port)
-    mysql_db_edit.execute_actions(actions)
-
-    root = create_tree()
+    create_tree()
     vessels = get_vascular_targets(vessel_map_all, branches)
+
+    return render_template('index.html', data=json.dumps(root.as_dict()), groups=groups, vessels=vessels)
+
+
+@app.route('/restore', methods=['GET', 'POST'])
+def restore():
+    global mysql_db, root, vessels
+    mysql_db = MySQLConnector(db_name, db_user, db_pwd, db_server, db_port)
+    mysql_db.restore_from_backup()
+
+    create_tree()
+    vessels = get_vascular_targets(vessel_map_all, branches)
+
+    return render_template('index.html', data=json.dumps(root.as_dict()), groups=groups, vessels=vessels)
+
+
+@app.route('/backup', methods=['GET', 'POST'])
+def backup():
+    global mysql_db, root, vessels
+    mysql_db = MySQLConnector(db_name, db_user, db_pwd, db_server, db_port)
+    mysql_db.create_backup()
+
     return render_template('index.html', data=json.dumps(root.as_dict()), groups=groups, vessels=vessels)
 
 

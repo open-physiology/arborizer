@@ -73,33 +73,58 @@ class MySQLConnector:
         for entry in entries:
             action_type = ActionType(entry["action"])
             params = entry["params"]
-            if action_type == ActionType.REMOVE:
-                self.remove_edge(params)
-            elif action_type == ActionType.MOVE_UP or action_type == ActionType.MOVE_DOWN:
-                self.move_up_or_down(params)
-            elif action_type == ActionType.ADD_ORDER:
-                self.add_order(params)
-            elif action_type == ActionType.REMOVE_ORDER:
-                self.remove_order(params)
-            elif action_type == ActionType.MOVE_TO_GROUP:
-                self.move_to_group(params)
-            elif action_type == ActionType.ADD_TO_GROUP:
-                self.add_to_group(params)
-
+            try:
+                if action_type == ActionType.REMOVE:
+                    self.remove_edge(params)
+                elif action_type == ActionType.MOVE_UP or action_type == ActionType.MOVE_DOWN:
+                    self.move_up_or_down(params)
+                elif action_type == ActionType.ADD_ORDER:
+                    self.add_order(params)
+                elif action_type == ActionType.REMOVE_ORDER:
+                    self.remove_order(params)
+                elif action_type == ActionType.MOVE_TO_GROUP:
+                    self.move_to_group(params)
+                elif action_type == ActionType.ADD_TO_GROUP:
+                    self.add_to_group(params)
+            except Exception as e:
+                print("Failed to apply changes to the master_vascular: ", action_type, params)
+                print(e)
         self.driver.commit()
+
+    def create_backup(self):
+        query1 = """DELETE FROM master_vascular_backup"""
+        query2 = """INSERT INTO master_vascular_backup SELECT * FROM  master_vascular"""
+        cursor = self.driver.cursor()
+        cursor.execute(query1)
+        cursor.execute(query2)
+        self.driver.commit()
+        print("BACKUP, affected rows: ", cursor.rowcount)
+
+    def restore_from_backup(self):
+        query1 = """DELETE FROM master_vascular"""
+        query2 = """INSERT INTO master_vascular SELECT * FROM  master_vascular_backup"""
+        cursor = self.driver.cursor()
+        cursor.execute(query1)
+        cursor.execute(query2)
+        self.driver.commit()
+        print("RESTORE, affected rows: ", cursor.rowcount)
 
     # Remove edge from master_vascular (tested)
     def remove_edge(self, params):
-        branch_id = params[0]
+        branch_id = params[0]["branch"]
+        main = params[0]["source"].split('_')[0]
+        sequence = params[0]["order"]
         query = """DELETE from master_vascular WHERE ID={0}""".format(branch_id)
         cursor = self.driver.cursor()
         cursor.execute(query)
         print("REMOVE, affected rows: ", cursor.rowcount)
-        self.decrease_order(params[0].main, params[0].sequence)
+        if sequence > 0:
+            self.decrease_order(main, sequence)
 
     # Update edge order in master_vascular after removing one, TEST needed
     def decrease_order(self, main, start):
         query = """UPDATE master_vascular SET sequence = sequence - 1 WHERE MAIN={0} and sequence>{1}""".format(main, start)
+        print(query)
         cursor = self.driver.cursor()
         cursor.execute(query)
         print("ADJUST ORDER, affected rows: ", cursor.rowcount)
@@ -123,15 +148,17 @@ class MySQLConnector:
 
     # Place edge to another group - TEST needed
     def move_to_group(self, params):
-        branch_id = params[0].branch
-        sequence = params[0].order
-        new_main = params[1]
-        old_order = params[2]
-        old_main = params[0].source.split('_')[0]
-        print(branch_id, new_main)
-        query = """UPDATE master_vascular SET main={0}, sequence={1} WHERE ID={2}""".format(new_main, sequence, branch_id)
+        branch_id = params[0]["branch"]
+        sequence = params[0]["order"]
+        source = params[1]
+
+        query = """UPDATE master_vascular SET main={0}, vl1originalID={1}, vl1originalvesselname="{2}", sequence={3} WHERE ID={4}""".\
+            format(source["nodeID"], source["fmaID"], source["name"], sequence, branch_id)
         cursor = self.driver.cursor()
         cursor.execute(query)
+
+        old_order = params[2]
+        old_main = params[0]["source"].split('_')[0]
         print("MOVE-GROUP, affected rows: ", cursor.rowcount)
         self.decrease_order(old_main, old_order)
 
@@ -155,16 +182,12 @@ class MySQLConnector:
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"""
         print("New record: ", max_id + 1)
         values = (max_id + 1, source["nodeID"], source["fmaID"], source["name"], target["nodeID"], target["fmaID"], target["name"], target["vesselType"], order)
-        try:
-            cursor.execute(query, values)
-        except Exception as e:
-            print("Failed to add a new connection to the master_vascular!")
-            print(e)
+        cursor.execute(query, values)
 
     # Add order to an unordered branch - TEST needed
     def add_order(self, params):
-        branch_id = params[0].branch
-        sequence = params[0].order
+        branch_id = params[0]["branch"]
+        sequence = params[0]["order"]
         query = """UPDATE master_vascular SET sequence={0} WHERE ID={1}""" \
             .format(sequence, branch_id)
         cursor = self.driver.cursor()
@@ -173,12 +196,12 @@ class MySQLConnector:
 
     # Remove the order - TEST needed
     def remove_order(self, params):
-        branch_id = params[0].branch
-        query = """UPDATE master_vascular SET sequence=0 WHERE ID={1}""".format(branch_id)
+        branch_id = params[0]["branch"]
+        query = """UPDATE master_vascular SET sequence=0 WHERE ID={0}""".format(branch_id)
         cursor = self.driver.cursor()
         cursor.execute(query)
         print("REMOVE-ORDER, affected rows: ", cursor.rowcount)
         # Adjust follow up orders
-        main = params[0].source.split('_')[0]
+        main = params[0]["source"].split('_')[0]
         old_order = params[1]
         self.decrease_order(main, old_order)

@@ -77,8 +77,8 @@ select option {
     text-align: left;
 }
 
-#mainMenu{
-    max-width: 42px;
+.toolbar{
+    max-width: 48px;
 }
 
 #tree{
