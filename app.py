@@ -7,6 +7,7 @@ app = Flask(__name__)
 
 login = json.load(open('./credentials/api_mysql_db_nk.json', 'r'))
 db_name, db_user, db_pwd, db_server, db_port = (login.values())
+print(login.values())
 
 mysql_db = MySQLConnector(db_name, db_user, db_pwd, db_server, db_port)
 
