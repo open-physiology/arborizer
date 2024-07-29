@@ -135,15 +135,17 @@ class MySQLConnector:
         sequence1 = params[0]["order"]
         branch_id2 = params[1]["branch"]
         sequence2 = params[1]["order"]
+        print(branch_id1, sequence1)
+        print(branch_id2, sequence2)
         if sequence1 < 0 or sequence2 < 0 or abs(sequence1-sequence2) != 1:
             print("Something wrong with sequences: ", sequence1, sequence2)
             return
-        query = """UPDATE master_vascular SET sequence={0} WHERE ID={1}""".format(sequence1, branch_id1)
+        query1 = """UPDATE master_vascular SET sequence={0} WHERE ID={1}""".format(sequence1, branch_id1)
         cursor = self.driver.cursor()
-        cursor.execute(query)
+        cursor.execute(query1)
         print("MOVE (1), affected rows: ", cursor.rowcount)
-        query = """UPDATE master_vascular SET sequence={0} WHERE ID={1}""".format(sequence2, branch_id2)
-        cursor.execute(query)
+        query2 = """UPDATE master_vascular SET sequence={0} WHERE ID={1}""".format(sequence2, branch_id2)
+        cursor.execute(query2)
         print("MOVE (2), affected rows: ", cursor.rowcount)
 
     # Place edge to another group - TEST needed
