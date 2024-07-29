@@ -4,7 +4,8 @@ import mysql.connector
 class MySQLConnector:
 
     def __init__(self, database: str, user: str, password: str, host: str, port: str):
-        self.driver = mysql.connector.connect(user=user, password=password, database=database, host=host, port=port)
+        self.driver = mysql.connector.connect(user=user, password=password, database=database, host=host,
+                                              port=port, auth_plugin='mysql_native_password')
 
     # To construct vascular tree
     test_mode = True
