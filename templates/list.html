@@ -9,7 +9,7 @@
     </ul>
 </div>
 
-<div id="vesselList" class="data_part w3-quarter">
+<div id="vesselList" class="data_part w3-left sidePanel" style="display: none">
     <label for="vesselInput"></label>
         <input type="text" style="width:100%"
                id="vesselInput" class="Input" name="vesselInput" onkeyup="filterOptions()"/>
@@ -22,5 +22,19 @@
     </ul>
 </div>
 
-
-
+<div id="includedList" class="data_part w3-left sidePanel" style="display: none">
+    <label for="includedInput"></label>
+        <input type="text" style="width:100%"
+               id="includedInput" class="Input" name="includedInput" onkeyup="filterIncludeOptions()"/>
+    <ul id="ulIncluded">
+        {% for node in includedOptions %}
+            <li id="includeOption{{node.nodeID}}">
+                <label>
+                    <input type="checkbox" value={{ node.nodeID }} class="danger" {{'checked' if node.included == 1 else ''}} name='includedCheckbox'
+                        onchange="toggleIncludeOption({{ node }})">
+                </label>
+                {{node.fmaID}}: {{node.name}}
+            </li>
+         {% endfor %}
+    </ul>
+</div>

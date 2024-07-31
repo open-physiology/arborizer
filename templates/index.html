@@ -10,7 +10,6 @@
     <link rel="stylesheet" href="static/w3.css">
 </head>
 <body>
-
     <div id="mainMenu" class="w3-sidebar w3-bar-block toolbar">
        <div class="w3-border">
             <button id="btnBackup" class="w3-bar-item w3-hover-light-grey" title="Create backup" onclick=backup()>▤</button>
@@ -19,6 +18,8 @@
        <div class="w3-border">
            <button id="btnShow" class="w3-bar-item w3-hover-light-grey" title="Show vessels" onclick=openNav()>☰</button>
            <button id="btnHide" class="w3-bar-item w3-hover-light-grey" style="display: none" title="Hide vessels" onclick=closeNav()>×</button>
+           <button id="btnShowInc" class="w3-bar-item w3-hover-light-grey" title="Show included" onclick=openNavInc()>☑</button>
+           <button id="btnHideInc" class="w3-bar-item w3-hover-light-grey" style="display: none" title="Hide included" onclick=closeNavInc()>×</button>
            <button id="btnApply" class="w3-bar-item w3-hover-light-grey" title="Apply changes"
                    onclick=applyChanges()>✓<span id="isChange" style="display: none; color: red;">*</span>
            </button>
@@ -30,8 +31,11 @@
 
     <script>
         let vesselPanel = document.getElementById("vesselList");
+        let includedPanel = document.getElementById("includedList");
         let btnShow = document.getElementById("btnShow");
         let btnHide = document.getElementById("btnHide");
+        let btnShowInc = document.getElementById("btnShowInc");
+        let btnHideInc = document.getElementById("btnHideInc");
         let isChange = document.getElementById("isChange");
         let btnRestore = document.getElementById("btnRestore");
         let contextMenu = document.getElementById("listContextMenu");
@@ -44,8 +48,11 @@
         });
 
         let actions = [];
+        let addSet = new Set();
+        let removeSet = new Set();
         let treeDiagram;
 
+        const includedOptions = {{ includedOptions | safe }};
         const vessels = {{ vessels | safe }};
         const groups = {{ groups | safe }};
         const data = {{ data | safe }};
@@ -96,6 +103,22 @@
             }
         }
 
+        function filterIncludeOptions() {
+            let input, filter, ul, li, btn, i, txtValue;
+            input = document.getElementById("includedInput");
+            filter = input.value.toUpperCase();
+            ul = document.getElementById("ulIncluded");
+            li = ul.getElementsByTagName("li");
+            for (i = 0; i < li.length; i++) {
+                txtValue = li[i].innerHTML;
+                if (txtValue.toUpperCase().indexOf(filter) > -1) {
+                    li[i].style.display = "";
+                } else {
+                    li[i].style.display = "none";
+                }
+            }
+        }
+
         function hideListMenu() {
             contextMenu.style.display = "none"
         }
@@ -116,19 +139,47 @@
         }
 
         function openNav() {
-          vesselPanel.style.width = "600px";
+          vesselPanel.style.display = "block";
           tree.style.marginLeft = "650px";
-          tree.classList.add("w3-threequarter");
           btnHide.style.display = "block";
           btnShow.style.display = "none";
+          btnShowInc.style.display = "none";
         }
 
         function closeNav() {
-          vesselPanel.style.width = "0";
-          tree.classList.remove("w3-threequarter");
+          vesselPanel.style.display = "none";
           tree.style.marginLeft = "50px";
           btnHide.style.display = "none";
           btnShow.style.display = "block";
+          btnShowInc.style.display = "block";
+        }
+
+        function openNavInc() {
+          includedPanel.style.display = "block";
+          tree.style.marginLeft = "650px";
+          btnHideInc.style.display = "block";
+          btnShowInc.style.display = "none";
+          btnShow.style.display = "none";
+        }
+
+        function closeNavInc() {
+          includedPanel.style.display = "none";
+          tree.style.marginLeft = "50px";
+          btnHideInc.style.display = "none";
+          btnShowInc.style.display = "block";
+          btnShow.style.display = "block";
+        }
+
+        function toggleIncludeOption(node){
+            node.included = node.included? 0: 1;
+            if (node.included){
+                addSet.add(node.fmaID);
+                removeSet.delete(node.fmaID);
+            } else {
+                addSet.delete(node.fmaID);
+                removeSet.add(node.fmaID);
+            }
+            isChange.style.display = 'inline';
         }
 
         async function backup(){
@@ -140,7 +191,10 @@
         }
 
         async function applyChanges(){
-            await fetch("/edit?actions="+JSON.stringify(actions));
+            let request ="/edit?actions="+JSON.stringify(actions);
+            request += '&include=' + JSON.stringify([...addSet]);
+            request += '&exclude=' + JSON.stringify([...removeSet]);
+            await fetch(request);
             isChange.style.display = 'none';
         }
     </script>

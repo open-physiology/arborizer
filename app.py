@@ -15,6 +15,7 @@ branches = []
 groups = {}
 root = {}
 vessels = []
+included_options = []
 
 
 def get_vascular_targets(node_map, edges):
@@ -30,8 +31,9 @@ def get_vascular_targets(node_map, edges):
 
 
 def create_tree():
-    global mysql_db, vessel_map_all, branches, groups, root, vessels
+    global mysql_db, vessel_map_all, branches, groups, root, vessels, included_options
 
+    included_options = mysql_db.query_included()
     vessel_map_all = mysql_db.query_vascular_nodes_map()
     branches = mysql_db.query_vascular_edges()
     groups = {}
@@ -145,7 +147,8 @@ def index():
     mysql_db = MySQLConnector(db_name, db_user, db_pwd, db_server, db_port)
     create_tree()
     vessels = get_vascular_targets(vessel_map_all, branches)
-    return render_template('index.html', data=json.dumps(root.as_dict()), groups=groups, vessels=vessels)
+    return render_template('index.html', data=json.dumps(root.as_dict()), groups=groups,
+                           vessels=vessels, includedOptions=included_options)
 
 
 @app.route('/edit', methods=['GET', 'POST'])
@@ -154,12 +157,15 @@ def edit():
     mysql_db = MySQLConnector(db_name, db_user, db_pwd, db_server, db_port)
 
     actions = json.loads(request.args.get('actions'))
-    mysql_db.execute_actions(actions)
+    include = json.loads(request.args.get('include'))
+    exclude = json.loads(request.args.get('exclude'))
+    mysql_db.execute_actions(actions, include, exclude)
 
     create_tree()
     vessels = get_vascular_targets(vessel_map_all, branches)
 
-    return render_template('index.html', data=json.dumps(root.as_dict()), groups=groups, vessels=vessels)
+    return render_template('index.html', data=json.dumps(root.as_dict()),
+                           groups=groups, vessels=vessels, includedOptions=included_options)
 
 
 @app.route('/restore', methods=['GET', 'POST'])
@@ -171,7 +177,8 @@ def restore():
     create_tree()
     vessels = get_vascular_targets(vessel_map_all, branches)
 
-    return render_template('index.html', data=json.dumps(root.as_dict()), groups=groups, vessels=vessels)
+    return render_template('index.html', data=json.dumps(root.as_dict()),
+                           groups=groups, vessels=vessels, includedOptions=included_options)
 
 
 @app.route('/backup', methods=['GET', 'POST'])
@@ -180,7 +187,14 @@ def backup():
     mysql_db = MySQLConnector(db_name, db_user, db_pwd, db_server, db_port)
     mysql_db.create_backup()
 
-    return render_template('index.html', data=json.dumps(root.as_dict()), groups=groups, vessels=vessels)
+    return render_template('index.html', data=json.dumps(root.as_dict()),
+                           groups=groups, vessels=vessels, includedOptions=included_options)
+
+
+# Export displayed master_vascular edges
+@app.route('/download', methods=['GET', 'POST'])
+def download():
+    pass
 
 
 if __name__ == '__main__':

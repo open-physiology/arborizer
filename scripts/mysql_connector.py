@@ -11,6 +11,18 @@ class MySQLConnector:
     test_mode = True
     results = []
 
+    def query_included(self):
+        cursor = self.driver.cursor()
+        query = """
+            select distinct v.fma_id, v.name, COALESCE(t.include, 0) as include, t.lyph_template_ID from master_vascular_lyph_templates as t, 
+            master_vascular_vessels as v where t.VESSEL_FMA_ID = v.fma_id order by v.name"""
+        cursor.execute(query)
+        nodes = []
+        for item in cursor:
+            obj = {"fmaID": str(item[0]), "name": item[1], "included": item[2]}
+            nodes.append(obj)
+        return nodes
+
     # Get all vessels
     def query_vascular_nodes_map(self):
         cursor = self.driver.cursor()
@@ -28,7 +40,7 @@ class MySQLConnector:
         cursor = self.driver.cursor()
         query = """
             SELECT MAIN, BRANCH, CASE WHEN sequence = 0 THEN 1000 ELSE sequence END as sequence,
-                vl1originalID, vl2originalID, lyph_template_ID, node_colour, id from (
+                vl1originalID, vl2originalID, lyph_template_ID, node_colour, id, vl1originalvesselname, vl2originalvesselname from (
                 SELECT * FROM master_vascular WHERE MAIN in
                 (SELECT DISTINCT BRANCH FROM master_vascular, master_vascular_lyph_templates WHERE vl2originalID = VESSEL_FMA_ID and include)) as v
                 LEFT OUTER JOIN `master_vascular_lyph_templates` as lt ON v.vl1originalID = lt.VESSEL_FMA_ID
@@ -48,7 +60,7 @@ class MySQLConnector:
                 count = 1
             obj = {"source": str(source), "target": str(item[1]), 'order': item[2],
                    'source_fma': str(item[3]), 'target_fma': str(item[4]), 'lyph_template': item[5], 'color': item[6],
-                   'id': item[7]}
+                   'id': item[7], 'source_name': item[8], 'target_name': item[9]}
             branches.append(obj)
             prev = source
         for b in branches:
@@ -58,7 +70,7 @@ class MySQLConnector:
         return branches
 
     # Edit the tree
-    def execute_actions(self, entries):
+    def execute_actions(self, entries, include, exclude):
         from enum import Enum
 
         class ActionType(Enum):
@@ -71,6 +83,7 @@ class MySQLConnector:
             REMOVE_ORDER = "RemoveOrder"
 
         self.driver.autocommit = False
+        self.update_include(include, exclude)
         for entry in entries:
             action_type = ActionType(entry["action"])
             params = entry["params"]
@@ -91,6 +104,17 @@ class MySQLConnector:
                 print("Failed to apply changes to the master_vascular: ", action_type, params)
                 print(e)
         self.driver.commit()
+
+    def update_include(self, include, exclude):
+        cursor = self.driver.cursor()
+        if len(include) > 0:
+            query1 = """update master_vascular_lyph_templates as v set v.include=1 where v.VESSEL_FMA_ID in ({0})""" \
+                .format(','.join(include))
+            cursor.execute(query1)
+        if len(exclude) > 0:
+            query2 = """update master_vascular_lyph_templates as v set v.include=NULL where v.VESSEL_FMA_ID in ({0})""" \
+                .format(','.join(exclude))
+            cursor.execute(query2)
 
     def create_backup(self):
         query1 = """DELETE FROM master_vascular_backup"""
