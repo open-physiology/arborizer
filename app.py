@@ -1,5 +1,5 @@
 import json
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, redirect
 from scripts.mysql_connector import MySQLConnector
 from scripts.node import Node
 
@@ -8,8 +8,8 @@ app = Flask(__name__)
 login = json.load(open('./credentials/api_mysql_db_nk.json', 'r'))
 db_name, db_user, db_pwd, db_server, db_port = (login.values())
 
-mysql_db = MySQLConnector(db_name, db_user, db_pwd, db_server, db_port)
-
+authorized = False
+mysql_db = None
 vessel_map_all = {}
 branches = []
 groups = {}
@@ -148,47 +148,62 @@ def index():
     create_tree()
     vessels = get_vascular_targets(vessel_map_all, branches)
     return render_template('index.html', data=json.dumps(root.as_dict()), groups=groups,
-                           vessels=vessels, includedOptions=included_options)
+                           vessels=vessels, includedOptions=included_options, authorized=authorized)
+
+
+@app.route('/login', methods=["GET", "POST"])
+def login():
+    global authorized
+    user_pwd = request.form['password']
+    authorized = user_pwd == db_pwd
+    render_template('index.html', data=json.dumps(root.as_dict()), groups=groups,
+                           vessels=vessels, includedOptions=included_options, authorized=authorized)
+    return redirect("/")
 
 
 @app.route('/edit', methods=['GET', 'POST'])
 def edit():
-    global mysql_db, root, vessels
-    mysql_db = MySQLConnector(db_name, db_user, db_pwd, db_server, db_port)
+    if authorized:
+        global mysql_db, root, vessels
+        mysql_db = MySQLConnector(db_name, db_user, db_pwd, db_server, db_port)
 
-    actions = json.loads(request.args.get('actions'))
-    include = json.loads(request.args.get('include'))
-    exclude = json.loads(request.args.get('exclude'))
-    mysql_db.execute_actions(actions, include, exclude)
+        actions = json.loads(request.args.get('actions'))
+        include = json.loads(request.args.get('include'))
+        exclude = json.loads(request.args.get('exclude'))
+        mysql_db.execute_actions(actions, include, exclude)
 
-    create_tree()
-    vessels = get_vascular_targets(vessel_map_all, branches)
+        create_tree()
+        vessels = get_vascular_targets(vessel_map_all, branches)
 
-    return render_template('index.html', data=json.dumps(root.as_dict()),
-                           groups=groups, vessels=vessels, includedOptions=included_options)
+    render_template('index.html', data=json.dumps(root.as_dict()), groups=groups,
+                           vessels=vessels, includedOptions=included_options, authorized=authorized)
+    return redirect("/")
 
 
 @app.route('/restore', methods=['GET', 'POST'])
 def restore():
-    global mysql_db, root, vessels
-    mysql_db = MySQLConnector(db_name, db_user, db_pwd, db_server, db_port)
-    mysql_db.restore_from_backup()
+    if authorized:
+        global mysql_db, root, vessels
+        mysql_db = MySQLConnector(db_name, db_user, db_pwd, db_server, db_port)
+        mysql_db.restore_from_backup()
+        create_tree()
+        vessels = get_vascular_targets(vessel_map_all, branches)
 
-    create_tree()
-    vessels = get_vascular_targets(vessel_map_all, branches)
-
-    return render_template('index.html', data=json.dumps(root.as_dict()),
-                           groups=groups, vessels=vessels, includedOptions=included_options)
+    render_template('index.html', data=json.dumps(root.as_dict()),
+                           groups=groups, vessels=vessels, includedOptions=included_options, authorized=authorized)
+    return redirect("/")
 
 
 @app.route('/backup', methods=['GET', 'POST'])
 def backup():
-    global mysql_db, root, vessels
-    mysql_db = MySQLConnector(db_name, db_user, db_pwd, db_server, db_port)
-    mysql_db.create_backup()
+    if authorized:
+        global mysql_db, root, vessels
+        mysql_db = MySQLConnector(db_name, db_user, db_pwd, db_server, db_port)
+        mysql_db.create_backup()
 
-    return render_template('index.html', data=json.dumps(root.as_dict()),
-                           groups=groups, vessels=vessels, includedOptions=included_options)
+    render_template('index.html', data=json.dumps(root.as_dict()),
+                           groups=groups, vessels=vessels, includedOptions=included_options, authorized=authorized)
+    return redirect("/")
 
 
 # Export displayed master_vascular edges

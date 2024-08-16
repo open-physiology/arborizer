@@ -38,8 +38,10 @@ class Tree {
             .attr("height", "100%")
             .attr("fill", "white")
             .on('click', this.hideMenu)
-            .on('contextmenu', this.hideMenu);
-
+            .on('contextmenu', this.hideMenu)
+            .call(d3.behavior.zoom().on("zoom", () => {
+                this.svg.attr("transform", "translate(" + d3.event.translate + ")" + " scale(" + d3.event.scale + ")")
+            }));
         this.root.x0 = 0;
         this.root.y0 = width / 2;
 

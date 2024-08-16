@@ -249,3 +249,42 @@ select option {
     color: red;
     background: darkgray;
 }
+
+#ovrly{
+	background-color: #000;
+	height: 100%;
+	width: 100%;
+	position: fixed;
+	top: 0;
+	opacity: 0.3;
+}
+
+#login{
+	background-color: #fff;
+	width: 30%;
+	margin: auto;
+	border: 3px solid #2ecc71;
+	border-radius: 10px;
+	padding: 20px;
+	text-align: center;
+	position: relative;
+}
+
+#cross{
+	position: absolute;
+    left: 94%;
+    top: 0;
+	border: 0;
+	background-color: transparent;
+}
+
+form,input[type="button"]{margin:0 !important}
+.txt,.pswd{
+	background-color: #fff;
+	display: block;
+	border: 2px solid #2ecc71;
+	border-radius: 10px;
+	padding: 5px;
+	margin: auto;
+	margin-bottom: 15px
+}

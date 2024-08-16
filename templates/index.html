@@ -6,42 +6,51 @@
     <meta charset="utf-8">
     <meta name="author" content="Natallia Kokash">
     <meta name="viewport" content="width=device-width, initial-scale=1.0,maximum-scale=1,user-scalable=no">
-    <link rel="stylesheet" href="static/style.css">
-    <link rel="stylesheet" href="static/w3.css">
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="/static/w3.css">
 </head>
 <body>
     <div id="mainMenu" class="w3-sidebar w3-bar-block toolbar">
-       <div class="w3-border">
-            <button id="btnBackup" class="w3-bar-item w3-hover-light-grey" title="Create backup" onclick=backup()>▤</button>
-            <button id="btnRestore" class="w3-bar-item w3-hover-light-grey" title="Restore from backup" onclick=restore()>⮐</button>
-       </div>
        <div class="w3-border">
            <button id="btnShow" class="w3-bar-item w3-hover-light-grey" title="Show vessels" onclick=openNav()>☰</button>
            <button id="btnHide" class="w3-bar-item w3-hover-light-grey" style="display: none" title="Hide vessels" onclick=closeNav()>×</button>
            <button id="btnShowInc" class="w3-bar-item w3-hover-light-grey" title="Show included" onclick=openNavInc()>☑</button>
            <button id="btnHideInc" class="w3-bar-item w3-hover-light-grey" style="display: none" title="Hide included" onclick=closeNavInc()>×</button>
+       </div>
+       <div class="w3-border">
+           <button id="btnLogin" class="w3-bar-item w3-hover-light-grey" title="Login" onclick=login()>🔒</button>
+           <button id="btnBackup" class="w3-bar-item w3-hover-light-grey" title="Create backup" onclick=backup()>▤</button>
+           <button id="btnRestore" class="w3-bar-item w3-hover-light-grey" title="Restore from backup" onclick=restore()>⮐</button>
            <button id="btnApply" class="w3-bar-item w3-hover-light-grey" title="Apply changes"
                    onclick=applyChanges()>✓<span id="isChange" style="display: none; color: red;">*</span>
            </button>
        </div>
     </div>
 
+    {% include 'login.html' %}
     {% include 'list.html' %}
     {% include 'tree.html' %}
 
     <script>
         let vesselPanel = document.getElementById("vesselList");
         let includedPanel = document.getElementById("includedList");
+        let contextMenu = document.getElementById("listContextMenu");
+        let tree = document.getElementById("tree");
+
         let btnShow = document.getElementById("btnShow");
         let btnHide = document.getElementById("btnHide");
         let btnShowInc = document.getElementById("btnShowInc");
         let btnHideInc = document.getElementById("btnHideInc");
-        let isChange = document.getElementById("isChange");
-        let btnRestore = document.getElementById("btnRestore");
-        let contextMenu = document.getElementById("listContextMenu");
-        let tree = document.getElementById("tree");
 
-        document.addEventListener("click", function(e){
+        let isChange = document.getElementById("isChange");
+        let btnApply = document.getElementById("btnApply");
+        let btnBackup = document.getElementById("btnBackup");
+        let btnRestore = document.getElementById("btnRestore");
+
+        let loginDiv = document.getElementById("login");
+        let crossBtn = document.getElementById("cross");
+
+        document.addEventListener("click", function(){
             if (contextMenu.style.display === "block"){
                 hideListMenu();
             }
@@ -56,6 +65,23 @@
         const vessels = {{ vessels | safe }};
         const groups = {{ groups | safe }};
         const data = {{ data | safe }};
+        const authorized =  {{ authorized | tojson }};
+
+        console.log("Is instance authorized to edit?", authorized);
+
+        if (!authorized){
+            btnApply.disabled = true;
+            btnBackup.disabled = true;
+            btnRestore.disabled = true;
+        } else {
+            btnApply.disabled = false;
+            btnBackup.disabled = false;
+            btnRestore.disabled = false;
+        }
+
+        crossBtn.onclick = () => {
+            loginDiv.style.display = "none";
+        }
 
         treeDiagram = new Tree(data, groups, actions);
 
@@ -64,7 +90,11 @@
             if (vesselOption) {
                 vesselOption.oncontextmenu = e => showMenu(e, vessel);
             }
-        })
+        });
+
+        function login(){
+            loginDiv.style.display = "block";
+        }
 
         function showMenu(e, node){
             e.preventDefault();
