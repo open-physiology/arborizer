@@ -5,8 +5,8 @@ from scripts.node import Node
 
 app = Flask(__name__)
 
-login = json.load(open('./credentials/api_mysql_db_nk.json', 'r'))
-db_name, db_user, db_pwd, db_server, db_port = (login.values())
+login = json.load(open('./credentials/api_mysql_db.json', 'r'))
+db_name, db_user, db_pwd, db_server, db_port, user_access = (login.values())
 
 authorized = False
 mysql_db = None
@@ -155,7 +155,7 @@ def index():
 def login():
     global authorized
     user_pwd = request.form['password']
-    authorized = user_pwd == db_pwd
+    authorized = user_pwd == user_access
     render_template('index.html', data=json.dumps(root.as_dict()), groups=groups,
                            vessels=vessels, includedOptions=included_options, authorized=authorized)
     return redirect("/")

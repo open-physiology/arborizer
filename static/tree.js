@@ -314,7 +314,7 @@ class Tree {
 
     getLabel(d){
         if (d.data?.connector) {
-            return (d.data.order || '?') + ": " + d.id;
+            return (d.data.order || '?');
         }
         return d.name.substring(0, 20);
     }
