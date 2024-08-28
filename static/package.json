@@ -1,0 +1,24 @@
+{
+  "name": "arborizer",
+  "version": "1.0.0",
+  "description": "Vascular system editor",
+  "main": "tree.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "heroku-postbuild": "npm install && npm run build"
+  },
+  "author": "",
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/open-physiology/arborizer.git"
+  },
+  "bugs": {
+    "url": "https://github.com/open-physiology/arborizer/issues"
+  },
+  "homepage": "https://github.com/open-physiology/arborizer#readme",
+  "dependencies": {
+    "build": "^0.1.4",
+    "file-saver": "^2.0.5"
+  }
+}
