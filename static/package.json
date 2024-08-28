@@ -18,7 +18,6 @@
   },
   "homepage": "https://github.com/open-physiology/arborizer#readme",
   "dependencies": {
-    "build": "^0.1.4",
     "file-saver": "^2.0.5"
   }
 }
