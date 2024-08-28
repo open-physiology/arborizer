@@ -21,6 +21,11 @@ class Node(object):
         # return child object for later add
         return _child
 
+    def add_child(self, node):
+        child_found = [c for c in self.children if c.id == node.id]
+        if not child_found:
+            self.children.append(node)
+
     # convert the whole object to dict
     def as_dict(self):
         return {'id': self.id, 'name': self.name, 'data': self.data, 'children': [c.as_dict() for c in self.children]}

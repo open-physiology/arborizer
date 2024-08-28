@@ -40,7 +40,9 @@ class MySQLConnector:
         cursor = self.driver.cursor()
         query = """
             SELECT MAIN, BRANCH, CASE WHEN sequence = 0 THEN 1000 ELSE sequence END as sequence,
-                vl1originalID, vl2originalID, lyph_template_ID, node_colour, id, vl1originalvesselname, vl2originalvesselname from (
+                vl1originalID, vl2originalID, 
+                lyph_template_ID, node_colour, id, 
+                vl1originalvesselname, vl2originalvesselname from (
                 SELECT * FROM master_vascular WHERE MAIN in
                 (SELECT DISTINCT BRANCH FROM master_vascular, master_vascular_lyph_templates WHERE vl2originalID = VESSEL_FMA_ID and include)) as v
                 LEFT OUTER JOIN `master_vascular_lyph_templates` as lt ON v.vl1originalID = lt.VESSEL_FMA_ID
@@ -59,8 +61,9 @@ class MySQLConnector:
                         b["total"] = count
                 count = 1
             obj = {"source": str(source), "target": str(item[1]), 'order': item[2],
-                   'source_fma': str(item[3]), 'target_fma': str(item[4]), 'lyph_template': item[5], 'color': item[6],
-                   'id': item[7], 'source_name': item[8], 'target_name': item[9]}
+                   'source_fma': str(item[3]), 'target_fma': str(item[4]),
+                   'lyph_template': item[5], 'color': item[6], 'id': item[7],
+                   'source_name': item[8], 'target_name': item[9]}
             branches.append(obj)
             prev = source
         for b in branches:

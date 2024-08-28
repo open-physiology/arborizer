@@ -132,13 +132,26 @@ def create_tree():
     root_id = "all"
     root = Node(root_id, "All", None)
     nodes[root.id] = root
+    loose_roots = {}
+    root_parents = {}
     for edge in tree:
         if not edge["source"] in nodes:
-            parent = root.child(edge["source"], node_map[edge["source"]]["name"], edge)
+            edge_copy = edge.copy()
+            if "connector" in edge_copy:
+                del edge_copy["connector"]
+            parent = Node(edge["source"], node_map[edge["source"]]["name"], edge_copy)
             nodes[parent.id] = parent
+            loose_roots[parent.id] = parent
         parent = nodes[edge["source"]]
         child = parent.child(edge["target"], node_map[edge["target"]]["name"], edge)
         nodes[child.id] = child
+        if child.id in loose_roots:
+            root_parents[child.id] = child
+    for key in loose_roots:
+        if key in root_parents:
+            root_parents[key].children = loose_roots[key].children
+        else:
+            root.add_child(loose_roots[key])
 
 
 @app.route('/')
@@ -156,7 +169,8 @@ def login():
     global authorized
     user_pwd = request.form['password']
     authorized = user_pwd == user_access
-    render_template('index.html', data=json.dumps(root.as_dict()), groups=groups,
+    if authorized:
+        render_template('index.html', data=json.dumps(root.as_dict()), groups=groups,
                            vessels=vessels, includedOptions=included_options, authorized=authorized)
     return redirect("/")
 
@@ -174,9 +188,8 @@ def edit():
 
         create_tree()
         vessels = get_vascular_targets(vessel_map_all, branches)
-
-    render_template('index.html', data=json.dumps(root.as_dict()), groups=groups,
-                           vessels=vessels, includedOptions=included_options, authorized=authorized)
+        render_template('index.html', data=json.dumps(root.as_dict()), groups=groups,
+                               vessels=vessels, includedOptions=included_options, authorized=authorized)
     return redirect("/")
 
 
@@ -188,8 +201,7 @@ def restore():
         mysql_db.restore_from_backup()
         create_tree()
         vessels = get_vascular_targets(vessel_map_all, branches)
-
-    render_template('index.html', data=json.dumps(root.as_dict()),
+        render_template('index.html', data=json.dumps(root.as_dict()),
                            groups=groups, vessels=vessels, includedOptions=included_options, authorized=authorized)
     return redirect("/")
 
@@ -200,8 +212,7 @@ def backup():
         global mysql_db, root, vessels
         mysql_db = MySQLConnector(db_name, db_user, db_pwd, db_server, db_port)
         mysql_db.create_backup()
-
-    render_template('index.html', data=json.dumps(root.as_dict()),
+        render_template('index.html', data=json.dumps(root.as_dict()),
                            groups=groups, vessels=vessels, includedOptions=included_options, authorized=authorized)
     return redirect("/")
 

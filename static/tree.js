@@ -33,15 +33,21 @@ class Tree {
             .append("g")
             .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
-        this.svg.append("rect")
+        let rect = this.svg.append("rect")
             .attr("width", "100%")
             .attr("height", "100%")
             .attr("fill", "white")
             .on('click', this.hideMenu)
             .on('contextmenu', this.hideMenu)
-            .call(d3.behavior.zoom().on("zoom", () => {
+            .call(d3.behavior.zoom()
+                .translate ([0, 0])
+                .scale (1.0)
+                .scaleExtent([0.5, 2.0])
+                .on("zoom", () => {
                 this.svg.attr("transform", "translate(" + d3.event.translate + ")" + " scale(" + d3.event.scale + ")")
-            }));
+            }))
+        ;
+
         this.root.x0 = 0;
         this.root.y0 = width / 2;
 
@@ -319,9 +325,12 @@ class Tree {
         return d.name.substring(0, 20);
     }
 
+    clear(){
+        this.svg.selectAll("g").remove();
+    }
+
     update(source) {
         // Compute the new tree layout.
-        // this.svg.selectAll("g.node").remove();
 
         let nodes = this.tree.nodes(this.root),
             links = this.tree.links(nodes);

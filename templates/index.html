@@ -9,6 +9,9 @@
     <link rel="stylesheet" href="/static/style.css">
     <link rel="stylesheet" href="/static/w3.css">
 </head>
+{#<script src="{{url_for('static', filename='node_modules/file-saver/dist/FileSaver.js')}}"></script>#}
+<script src="http://cdn.jsdelivr.net/g/filesaver.js"></script>
+
 <body>
     <div id="mainMenu" class="w3-sidebar w3-bar-block toolbar">
        <div class="w3-border">
@@ -25,6 +28,9 @@
                    onclick=applyChanges()>✓<span id="isChange" style="display: none; color: red;">*</span>
            </button>
        </div>
+       <div class="w3-border">
+           <button id="btnDownload" class="w3-bar-item w3-hover-light-grey" title="Download" onclick=download()>⇩</button>
+       </div>
     </div>
 
     {% include 'login.html' %}
@@ -32,6 +38,7 @@
     {% include 'tree.html' %}
 
     <script>
+
         let vesselPanel = document.getElementById("vesselList");
         let includedPanel = document.getElementById("includedList");
         let contextMenu = document.getElementById("listContextMenu");
@@ -49,6 +56,7 @@
 
         let loginDiv = document.getElementById("login");
         let crossBtn = document.getElementById("cross");
+        let accessDiv = document.getElementById("access");
 
         document.addEventListener("click", function(){
             if (contextMenu.style.display === "block"){
@@ -56,35 +64,8 @@
             }
         });
 
-        let actions = [];
-        let addSet = new Set();
-        let removeSet = new Set();
-        let treeDiagram;
-
-        const includedOptions = {{ includedOptions | safe }};
-        const vessels = {{ vessels | safe }};
-        const groups = {{ groups | safe }};
-        const data = {{ data | safe }};
-        const authorized =  {{ authorized | tojson }};
-
-        console.log("Is instance authorized to edit?", authorized);
-
-        if (!authorized){
-            btnApply.disabled = true;
-            btnBackup.disabled = true;
-            btnRestore.disabled = true;
-        } else {
-            btnApply.disabled = false;
-            btnBackup.disabled = false;
-            btnRestore.disabled = false;
-        }
-
-        crossBtn.onclick = () => {
-            loginDiv.style.display = "none";
-        }
-
-        treeDiagram = new Tree(data, groups, actions);
-
+        let actions, addSet, removeSet, includedOptions, vessels, groups, data, data_copy, authorized, treeDiagram;
+        vessels = {{ vessels | safe }};
         vessels.forEach(vessel => {
             let vesselOption = document.getElementById("vesselOption"+vessel.nodeID);
             if (vesselOption) {
@@ -92,8 +73,51 @@
             }
         });
 
+        crossBtn.onclick = () => {
+            loginDiv.style.display = "none";
+        }
+
+        prepareTreeView();
+
+        function prepareTreeView() {
+            actions = [];
+            addSet = new Set();
+            removeSet = new Set();
+            includedOptions = {{ includedOptions | safe }};
+            groups = {{ groups | safe }};
+            data = {{ data | safe }};
+            authorized =  {{ authorized | tojson }};
+            data_copy = "";
+            try {
+                data_copy = JSON.stringify(data, null, 2);
+            } catch (error){
+                console.log("Unable to prepare JSON output!");
+                console.log(error);
+            }
+            if (!authorized){
+                accessDiv.style.display = "block";
+            }
+            treeDiagram = new Tree(data, groups, actions);
+        }
+
+        function download(){
+            const blob = new Blob([data_copy], {type: 'application/json'});
+            let currentdate = new Date();
+            let ext = "" + currentdate.getDate() + "-"
+                + (currentdate.getMonth()+1)  + "-"
+                + currentdate.getFullYear() + "@"
+                + currentdate.getHours() + "_"
+                + currentdate.getMinutes() + "_"
+                + currentdate.getSeconds();
+            saveAs(blob, `arborizer${ext}.json`);
+        }
+
         function login(){
-            loginDiv.style.display = "block";
+            if (authorized){
+                window.alert("You are already authorized to edit!");
+            } else {
+                loginDiv.style.display = "block";
+            }
         }
 
         function showMenu(e, node){
@@ -227,23 +251,43 @@
         }
 
         async function backup(){
+            if (!authorized){
+                window.alert("You are not authorized to perform this action! Please, login!");
+                return;
+            }
             if (window.confirm("Backup master_vascular table?")) {
                 await fetch("/backup");
+                window.alert("Content of master_vascular copied to master_vascular_backup!")
             }
         }
 
         async function restore(){
+            if (!authorized){
+                window.alert("You are not authorized to perform this action! Please, login!");
+                return;
+            }
             if (window.confirm("Restore master_vascular table from the latest backup?")) {
                 await fetch("/restore");
+                window.location.reload();
             }
         }
 
         async function applyChanges(){
-            let request ="/edit?actions="+JSON.stringify(actions);
-            request += '&include=' + JSON.stringify([...addSet]);
-            request += '&exclude=' + JSON.stringify([...removeSet]);
-            await fetch(request);
-            isChange.style.display = 'none';
+            if (!authorized){
+                window.alert("You are not authorized to perform this action! Please, login!");
+                return;
+            }
+            if (actions.length === 0 && addSet.size === 0 && removeSet.size === 0){
+                window.alert("No changes detected!");
+            } else {
+                if (window.confirm("Save changes in the database?")) {
+                    let request = "/edit?actions=" + JSON.stringify(actions);
+                    request += '&include=' + JSON.stringify([...addSet]);
+                    request += '&exclude=' + JSON.stringify([...removeSet]);
+                    await fetch(request);
+                    window.location.reload();
+                }
+            }
         }
     </script>
 
