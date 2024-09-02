@@ -45,9 +45,7 @@ h3 {
 }
 
 ::placeholder {
-    color: rgb(50, 50, 50);
-    font-size: 20px;
-    padding-left: 10px;
+    padding-left: 0;
 }
 
 select option {
@@ -65,28 +63,12 @@ select option {
     text-align: left;
 }
 
-.data_part {
-    border: 2px solid teal;
-    width: 100%;
-    height: 100vh;
-    margin-left: 50px;
-    margin-top: 10px;
-    background: white;
-    overflow: auto;
-    padding: 10px;
-    text-align: left;
-}
-
 .toolbar{
     max-width: 48px;
 }
 
 #tree{
     position: fixed !important;
-}
-
-.sidePanel{
-    width: 600px;
 }
 
 @media screen {
@@ -100,7 +82,7 @@ select option {
 }
 
 /* The search field */
-.Input {
+.search {
     height: 30px;
     width: 300px;
     border: 2px;
@@ -109,6 +91,7 @@ select option {
     box-sizing: border-box;
     font-size: 16px;
     border: none;
+    padding-left: 10px;
     border-bottom: 1px solid rgb(50, 200, 200);
 }
 
@@ -226,6 +209,28 @@ select option {
     pointer-events:none;
     opacity:0.4;
     text-decoration-line: line-through;
+}
+
+.side_panel{
+    width: 600px;
+}
+
+.data_panel{
+    border: 2px solid teal;
+    height: 100vh;
+    margin-left: 50px;
+    margin-top: 10px;
+    background: white;
+    padding: 10px;
+    text-align: left;
+}
+
+.data_part {
+    border: 2px solid teal;
+    width: 100%;
+    height: 100vh;
+    margin-top: 10px;
+    overflow: auto;
 }
 
 .data_part ul {
