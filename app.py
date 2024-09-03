@@ -172,11 +172,8 @@ def index():
 @app.route('/login', methods=["GET", "POST"])
 def login():
     user_pwd = request.form['password']
-    authorized = user_pwd == user_access
-    if authorized:
+    if user_pwd == user_access:
         session['logged_in'] = True
-        render_template('index.html', data=json.dumps(root.as_dict()), groups=groups,
-                           vessels=vessels, includedOptions=included_options, authorized=True)
     return redirect("/")
 
 
@@ -190,11 +187,6 @@ def edit():
         include = json.loads(request.args.get('include'))
         exclude = json.loads(request.args.get('exclude'))
         mysql_db.execute_actions(actions, include, exclude)
-
-        create_tree()
-        vessels = get_vascular_targets(vessel_map_all, branches)
-        render_template('index.html', data=json.dumps(root.as_dict()), groups=groups,
-                               vessels=vessels, includedOptions=included_options, authorized=True)
     return redirect("/")
 
 
@@ -204,10 +196,6 @@ def restore():
         global mysql_db, root, vessels
         mysql_db = MySQLConnector(db_name, db_user, db_pwd, db_server, db_port)
         mysql_db.restore_from_backup()
-        create_tree()
-        vessels = get_vascular_targets(vessel_map_all, branches)
-        render_template('index.html', data=json.dumps(root.as_dict()),
-                           groups=groups, vessels=vessels, includedOptions=included_options, authorized=True)
     return redirect("/")
 
 
@@ -217,8 +205,6 @@ def backup():
         global mysql_db, root, vessels
         mysql_db = MySQLConnector(db_name, db_user, db_pwd, db_server, db_port)
         mysql_db.create_backup()
-        render_template('index.html', data=json.dumps(root.as_dict()),
-                           groups=groups, vessels=vessels, includedOptions=included_options, authorized=True)
     return redirect("/")
 
 
