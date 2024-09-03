@@ -42,6 +42,10 @@ def create_tree():
     branches = mysql_db.query_vascular_edges()
     groups = {}
     node_map = {}
+    include_set = set()
+    for entry in included_options:
+        if entry["included"]:
+            include_set.add(entry["fmaID"])
 
     for branch in branches:
         s_id = branch["source"]
@@ -122,7 +126,8 @@ def create_tree():
             lnk2_id = "lnk-" + m_id + "_" + t_id
             lnk2 = {
                 "id": lnk2_id, "conveyingLyph": lyph_id, "source": m_id, "target": t_id, "fmaID": branch["target_fma"],
-                "color": color, "group": group_id, "branch": branch["id"]
+                "color": color, "group": group_id, "branch": branch["id"],
+                "included": 1 if branch["target_fma"] in include_set else 0
             }
 
             tree.append(lnk1)

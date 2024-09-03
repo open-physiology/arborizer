@@ -320,7 +320,6 @@ class Tree {
 
     exclude(d){
         this.hideMenu();
-        // d.data.inluded = true;
         toggleIncludeOption(d.data);
     }
 
@@ -405,7 +404,7 @@ class Tree {
             btnExclude.style.display = "none";
 
             if (d.data && !d.data.connector){
-                if (d.children?.length > 0 || d.data.included){
+                if (d.data.included){
                     btnExclude.style.display = "block";
                     btnExclude.onclick = e => this.exclude(d);
                 } else {
