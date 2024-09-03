@@ -1,14 +1,18 @@
 import json
-from flask import Flask, render_template, request, redirect
+import os
+from datetime import datetime, timedelta
+from flask import Flask, render_template, request, redirect, session
 from scripts.mysql_connector import MySQLConnector
 from scripts.node import Node
 
 app = Flask(__name__)
+app.config['SESSION_PERMANENT'] = True
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours = 24)
+app.secret_key = os.urandom(24)
 
 login = json.load(open('./credentials/api_mysql_db.json', 'r'))
 db_name, db_user, db_pwd, db_server, db_port, user_access = (login.values())
 
-authorized = False
 mysql_db = None
 vessel_map_all = {}
 branches = []
@@ -117,8 +121,8 @@ def create_tree():
 
             lnk2_id = "lnk-" + m_id + "_" + t_id
             lnk2 = {
-                "id": lnk2_id, "conveyingLyph": lyph_id, "source": m_id, "target": t_id,
-                "fmaID": branch["target_fma"], "color": color, "group": group_id, "branch": branch["id"]
+                "id": lnk2_id, "conveyingLyph": lyph_id, "source": m_id, "target": t_id, "fmaID": branch["target_fma"],
+                "color": color, "group": group_id, "branch": branch["id"]
             }
 
             tree.append(lnk1)
@@ -160,24 +164,25 @@ def index():
     mysql_db = MySQLConnector(db_name, db_user, db_pwd, db_server, db_port)
     create_tree()
     vessels = get_vascular_targets(vessel_map_all, branches)
+    authorized = session.get('logged_in')
     return render_template('index.html', data=json.dumps(root.as_dict()), groups=groups,
                            vessels=vessels, includedOptions=included_options, authorized=authorized)
 
 
 @app.route('/login', methods=["GET", "POST"])
 def login():
-    global authorized
     user_pwd = request.form['password']
     authorized = user_pwd == user_access
     if authorized:
+        session['logged_in'] = True
         render_template('index.html', data=json.dumps(root.as_dict()), groups=groups,
-                           vessels=vessels, includedOptions=included_options, authorized=authorized)
+                           vessels=vessels, includedOptions=included_options, authorized=True)
     return redirect("/")
 
 
 @app.route('/edit', methods=['GET', 'POST'])
 def edit():
-    if authorized:
+    if session.get('logged_in'):
         global mysql_db, root, vessels
         mysql_db = MySQLConnector(db_name, db_user, db_pwd, db_server, db_port)
 
@@ -189,39 +194,34 @@ def edit():
         create_tree()
         vessels = get_vascular_targets(vessel_map_all, branches)
         render_template('index.html', data=json.dumps(root.as_dict()), groups=groups,
-                               vessels=vessels, includedOptions=included_options, authorized=authorized)
+                               vessels=vessels, includedOptions=included_options, authorized=True)
     return redirect("/")
 
 
 @app.route('/restore', methods=['GET', 'POST'])
 def restore():
-    if authorized:
+    if session.get('logged_in'):
         global mysql_db, root, vessels
         mysql_db = MySQLConnector(db_name, db_user, db_pwd, db_server, db_port)
         mysql_db.restore_from_backup()
         create_tree()
         vessels = get_vascular_targets(vessel_map_all, branches)
         render_template('index.html', data=json.dumps(root.as_dict()),
-                           groups=groups, vessels=vessels, includedOptions=included_options, authorized=authorized)
+                           groups=groups, vessels=vessels, includedOptions=included_options, authorized=True)
     return redirect("/")
 
 
 @app.route('/backup', methods=['GET', 'POST'])
 def backup():
-    if authorized:
+    if session.get('logged_in'):
         global mysql_db, root, vessels
         mysql_db = MySQLConnector(db_name, db_user, db_pwd, db_server, db_port)
         mysql_db.create_backup()
         render_template('index.html', data=json.dumps(root.as_dict()),
-                           groups=groups, vessels=vessels, includedOptions=included_options, authorized=authorized)
+                           groups=groups, vessels=vessels, includedOptions=included_options, authorized=True)
     return redirect("/")
-
-
-# Export displayed master_vascular edges
-@app.route('/download', methods=['GET', 'POST'])
-def download():
-    pass
 
 
 if __name__ == '__main__':
     app.run(debug=True)
+    session.pop('logged_in', None)

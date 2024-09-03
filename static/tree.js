@@ -40,7 +40,7 @@ class Tree {
             .on('click', this.hideMenu)
             .on('contextmenu', this.hideMenu)
             .call(d3.behavior.zoom()
-                .translate ([0, 0])
+                .translate([0, 0], [width, height])
                 .scale (1.0)
                 .scaleExtent([0.5, 2.0])
                 .on("zoom", () => {
@@ -313,6 +313,17 @@ class Tree {
         }
     }
 
+    include(d){
+       this.hideMenu();
+       toggleIncludeOption(d.data);
+    }
+
+    exclude(d){
+        this.hideMenu();
+        // d.data.inluded = true;
+        toggleIncludeOption(d.data);
+    }
+
     findNode(nodeID){
         let nodes = this.tree.nodes(this.root);
         return nodes.find(e => e.id === nodeID);
@@ -382,12 +393,26 @@ class Tree {
             let btnMoveDown = document.getElementById("btnMoveDown");
             let btnAddOrder = document.getElementById("btnAddOrder");
             let btnRemoveOrder = document.getElementById("btnRemoveOrder");
+            let btnInclude = document.getElementById("btnInclude");
+            let btnExclude = document.getElementById("btnExclude");
 
             btnRemove.style.display = "none";
             btnMoveUp.style.display = "none";
             btnMoveDown.style.display = "none";
             btnAddOrder.style.display = "none";
             btnRemoveOrder.style.display = "none";
+            btnInclude.style.display = "none";
+            btnExclude.style.display = "none";
+
+            if (d.data && !d.data.connector){
+                if (d.children?.length > 0 || d.data.included){
+                    btnExclude.style.display = "block";
+                    btnExclude.onclick = e => this.exclude(d);
+                } else {
+                    btnInclude.style.display = "block";
+                    btnInclude.onclick = e => this.include(d);
+                }
+            }
 
             // Actions are applied to connector nodes in a group
             // NK it is important not to allow actions on a newly added branch - no row ID exists
