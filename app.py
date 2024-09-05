@@ -4,10 +4,14 @@ from datetime import datetime, timedelta
 from flask import Flask, render_template, request, redirect, session
 from scripts.mysql_connector import MySQLConnector
 from scripts.node import Node
+import tempfile
 
 app = Flask(__name__)
 app.config['SESSION_PERMANENT'] = True
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=24)
+app.config["SESSION_FILE_DIR"] = tempfile.mkdtemp()
+app.config["SESSION_TYPE"] = "filesystem"
+
 app.secret_key = os.urandom(24)
 
 login = json.load(open('./credentials/api_mysql_db.json', 'r'))
@@ -20,12 +24,6 @@ groups = {}
 root = {}
 vessels = []
 included_options = []
-
-
-@app.before_request
-def make_session_permanent():
-    """Makes session permanent before each request"""
-    session.permanent = True
 
 
 def get_vascular_targets(node_map, edges):
