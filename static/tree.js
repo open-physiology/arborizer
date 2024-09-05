@@ -30,23 +30,24 @@ class Tree {
         this.svg = d3.select("#tree").append("svg")
             .attr("width", width + margin.right + margin.left)
             .attr("height", height + margin.top + margin.bottom)
-            .append("g")
-            .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
-        let rect = this.svg.append("rect")
+        this.svg.append("rect")
             .attr("width", "100%")
             .attr("height", "100%")
             .attr("fill", "white")
             .on('click', this.hideMenu)
-            .on('contextmenu', this.hideMenu)
-            .call(d3.behavior.zoom()
-                .translate([0, 0], [width, height])
-                .scale (1.0)
-                .scaleExtent([0.5, 2.0])
-                .on("zoom", () => {
-                this.svg.attr("transform", "translate(" + d3.event.translate + ")" + " scale(" + d3.event.scale + ")")
-            }))
-        ;
+            .on('contextmenu', this.hideMenu);
+
+        this.treeGroup = this.svg.append("g")
+            .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+        let zoom = d3.behavior.zoom()
+            .translate([0,0])
+            .scaleExtent([0.5, 2.0])
+            .on("zoom", () => {
+                this.treeGroup.attr("transform", ["translate(" + d3.event.translate + ")", "scale(" + d3.event.scale + ")"])
+            });
+        this.svg.call(zoom);
 
         this.root.x0 = 0;
         this.root.y0 = width / 2;
@@ -336,7 +337,7 @@ class Tree {
     }
 
     clear(){
-        this.svg.selectAll("g").remove();
+        this.treeGroup.selectAll("g").remove();
     }
 
     update(source) {
@@ -351,7 +352,7 @@ class Tree {
         });
 
         // Update the nodes…
-        let node = this.svg.selectAll("g.node")
+        let node = this.treeGroup.selectAll("g.node")
             .data(nodes, function (d, i) {
                 return d.id || (d.id = i);
             });
@@ -507,7 +508,7 @@ class Tree {
             .style("fill-opacity", 1e-6);
 
         // Update the links…
-        let link = this.svg.selectAll("path.link")
+        let link = this.treeGroup.selectAll("path.link")
             .data(links, function (d) {
                 return d.target.id;
             });
