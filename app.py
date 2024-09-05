@@ -7,7 +7,7 @@ from scripts.node import Node
 
 app = Flask(__name__)
 app.config['SESSION_PERMANENT'] = True
-app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours = 24)
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=24)
 app.secret_key = os.urandom(24)
 
 login = json.load(open('./credentials/api_mysql_db.json', 'r'))
@@ -20,6 +20,12 @@ groups = {}
 root = {}
 vessels = []
 included_options = []
+
+
+@app.before_request
+def make_session_permanent():
+    """Makes session permanent before each request"""
+    session.permanent = True
 
 
 def get_vascular_targets(node_map, edges):
