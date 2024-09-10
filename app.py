@@ -1,18 +1,13 @@
 import json
-import os
-from datetime import datetime, timedelta
-from flask import Flask, render_template, request, redirect, session
+from datetime import timedelta
+from flask import Flask, render_template, request, redirect, session, url_for
 from scripts.mysql_connector import MySQLConnector
 from scripts.node import Node
-import tempfile
 
 app = Flask(__name__)
 app.config['SESSION_PERMANENT'] = True
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=24)
-app.config["SESSION_FILE_DIR"] = tempfile.mkdtemp()
-app.config["SESSION_TYPE"] = "filesystem"
-
-app.secret_key = os.urandom(24)
+app.secret_key = '***REMOVED***'
 
 login = json.load(open('./credentials/api_mysql_db.json', 'r'))
 db_name, db_user, db_pwd, db_server, db_port, user_access = (login.values())
@@ -183,7 +178,7 @@ def login():
     user_pwd = request.form['password']
     if user_pwd == user_access:
         session['logged_in'] = True
-    return redirect("/")
+    return redirect(url_for("index"))
 
 
 @app.route('/edit', methods=['GET', 'POST'])
@@ -196,7 +191,7 @@ def edit():
         include = json.loads(request.args.get('include'))
         exclude = json.loads(request.args.get('exclude'))
         mysql_db.execute_actions(actions, include, exclude)
-    return redirect("/")
+    return redirect(url_for("index"))
 
 
 @app.route('/restore', methods=['GET', 'POST'])
@@ -205,7 +200,7 @@ def restore():
         global mysql_db, root, vessels
         mysql_db = MySQLConnector(db_name, db_user, db_pwd, db_server, db_port)
         mysql_db.restore_from_backup()
-    return redirect("/")
+    return redirect(url_for("index"))
 
 
 @app.route('/backup', methods=['GET', 'POST'])
@@ -214,7 +209,7 @@ def backup():
         global mysql_db, root, vessels
         mysql_db = MySQLConnector(db_name, db_user, db_pwd, db_server, db_port)
         mysql_db.create_backup()
-    return redirect("/")
+    return redirect(url_for("index"))
 
 
 if __name__ == '__main__':
