@@ -243,29 +243,30 @@ class Tree {
     addOrder(d){
         this.hideMenu();
         if (d.parent) {
-            let order = 1;
             let curr = d.parent;
-            while (curr && !curr.data.order) {
+            while (curr && !curr.data.order && curr.data.connector) {
                 curr = curr.parent;
             }
-            order = curr.data.order + 1;
-            let tmp = curr.children[1];
-            if (tmp && tmp.id !== d.id) {
+            let order = (curr.data.order || 0) + 1;
+            let m = curr.children.length-1;
+            let first = curr.children[m];
+            if (first.id !== d.id) {
                 if (d.children.length > 1) {
                     let n = d.parent.children.length;
                     d.parent.children[n - 1] = d.children[1];
-                    d.children[1] = d.parent;
+                    d.children[1].parent = d.parent;
                 } else {
                     d.parent.children.pop();
                 }
-                curr.children[1] = d;
+                //NK fix order
+                curr.children[m] = d;
                 d.parent = curr;
                 if (d.children.length > 1) {
-                    d.children[1] = tmp;
+                    d.children[1] = first;
                 } else {
-                    d.children.push(tmp);
+                    d.children.push(first);
                 }
-                tmp.parent = d;
+                first.parent = d;
             }
             d.data.order = order;
             d3.select("#node_" + d.id).remove();
