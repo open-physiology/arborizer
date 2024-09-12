@@ -212,9 +212,9 @@ class MySQLConnector:
             return
         cursor = self.driver.cursor()
         query = """INSERT INTO master_vascular (
-            ID, MAIN, vl1originalID, vl1originalvesselname, BRANCH, vl2originalID, vl2originalvesselname, vessel_type, sequence) 
+            ID, MAIN, vl1originalID, vl1originalvesselname, BRANCH, vl2originalID, vl2originalvesselname, vessel_type, sequence, disabled) 
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"""
-        values = (max_id + 1, source["nodeID"], source["fmaID"], source["name"], target["nodeID"], target["fmaID"], target["name"], target["vesselType"], order)
+        values = (max_id + 1, source["nodeID"], source["fmaID"], source["name"], target["nodeID"], target["fmaID"], target["name"], target["vesselType"], order, 0)
         cursor.execute(query, values)
         print("ADD-TO-GROUP: ", max_id + 1)
 
