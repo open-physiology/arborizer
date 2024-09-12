@@ -169,7 +169,7 @@ class MySQLConnector:
         sequence2 = params[1]["order"]
         print(branch_id1, sequence1)
         print(branch_id2, sequence2)
-        if sequence1 < 0 or sequence2 < 0 or abs(sequence1-sequence2) != 1:
+        if sequence1 < 0 or sequence2 < 0:
             print("Something wrong with sequences: ", sequence1, sequence2)
             return
         query1 = """UPDATE master_vascular SET sequence={0} WHERE ID={1}""".format(sequence1, branch_id1)

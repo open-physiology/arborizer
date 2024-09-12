@@ -93,23 +93,26 @@ class Tree {
         if (pred) {
             if (d.parent.data.group === d.data.group) {
                 d.data.order -= 1;
-                d.parent.data.order += 1;
                 d3.select("#node_"+d.id).remove();
-                d3.select("#node_"+d.parent.id).remove();
-                let x = d.parent.data;
-
-                let n = pred.children.length;
-                pred.children[n - 1] = d;
-                if (d.children.length > 1) {
-                    let next = d.children[1];
-                    d.children[1] = d.parent;
-                    d.parent.children[1] = next;
+                if (d.parent.data.order === d.data.order) {
+                    d.parent.data.order += 1;
+                    d3.select("#node_"+d.parent.id).remove();
+                    let x = d.parent.data;
+                    let n = pred.children.length;
+                    pred.children[n - 1] = d;
+                    if (d.children.length > 1) {
+                        let next = d.children[1];
+                        d.children[1] = d.parent;
+                        d.parent.children[1] = next;
+                    } else {
+                        d.parent.children.pop();
+                        d.children.push(d.parent);
+                    }
+                    d.parent = pred;
+                    this.saveAction(ActionType.MOVE_UP, d.data, x);
                 } else {
-                    d.parent.children.pop();
-                    d.children.push(d.parent);
+                    this.saveAction(ActionType.ADD_ORDER, d.data);
                 }
-                d.parent = pred;
-                this.saveAction(ActionType.MOVE_UP, d.data, x);
                 this.update(this.root);
             }
         }
@@ -120,25 +123,29 @@ class Tree {
         this.hideMenu();
         if (d.parent && d.children?.length > 1) {
             d.data.order += 1;
-            d.children[1].data.order -= 1;
             d3.select("#node_"+d.id).remove();
-            d3.select("#node_"+d.children[1].id).remove();
-            let x = d.children[1].data;
+            if (d.children[1].data.order === d.data.order) {
+                d.children[1].data.order -= 1;
+                d3.select("#node_" + d.children[1].id).remove();
+                let x = d.children[1].data;
 
-            let n = d.parent.children.length;
-            d.parent.children[n-1] = d.children[1];
-            d.children[1].parent = d.parent;
+                let n = d.parent.children.length;
+                d.parent.children[n - 1] = d.children[1];
+                d.children[1].parent = d.parent;
 
-            if (d.children[1].children?.length > 1) {
-                let next = d.children[1].children[1];
-                d.children[1].children[1] = d;
-                d.children[1] = next;
+                if (d.children[1].children?.length > 1) {
+                    let next = d.children[1].children[1];
+                    d.children[1].children[1] = d;
+                    d.children[1] = next;
+                } else {
+                    d.children[1].children.push(d);
+                    d.children.pop();
+                }
+                d.parent = d.children[1];
+                this.saveAction(ActionType.MOVE_DOWN, d.data, x);
             } else {
-                d.children[1].children.push(d);
-                d.children.pop();
+                this.saveAction(ActionType.ADD_ORDER, d.data);
             }
-            d.parent = d.children[1];
-            this.saveAction(ActionType.MOVE_DOWN, d.data, x);
             this.update(this.root);
         }
     }
