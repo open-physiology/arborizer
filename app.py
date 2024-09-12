@@ -45,6 +45,7 @@ def create_tree():
     for entry in included_options:
         if entry["included"]:
             include_set.add(entry["fmaID"])
+    # print("Included:", include_set)
 
     for branch in branches:
         s_id = branch["source"]
@@ -93,7 +94,7 @@ def create_tree():
             lnk = {
                 "id": lnk_id, "conveyingLyph": lyph_template, "source": s["id"], "target": t_id,
                 "fmaID": t["fmaID"], "color": color, "group": group_id,
-                "order": 0, "branch": branch["id"]
+                "order": 0, "branch": branch["id"], 'disabled': branch["disabled"]
             }
             tree.append(lnk)
             group_id = None
@@ -117,7 +118,8 @@ def create_tree():
             lnk1 = {
                 "id": lnk1_id, "conveyingLyph": lyph_template, "source": s["id"], "target": m_id,
                 "fmaID": branch['source_fma'], "color": color, "group": group_id,
-                "connector": 1, "order": order, "branch": branch["id"]
+                "connector": 1, "order": order, "branch": branch["id"],
+                "included": 1 if branch["source_fma"] in include_set else 0,
             }
 
             lyph_id = "lyph-" + branch["target"]
@@ -126,7 +128,7 @@ def create_tree():
             lnk2 = {
                 "id": lnk2_id, "conveyingLyph": lyph_id, "source": m_id, "target": t_id, "fmaID": branch["target_fma"],
                 "color": color, "group": group_id, "branch": branch["id"],
-                "included": 1 if branch["target_fma"] in include_set else 0
+                "included": 1 if branch["target_fma"] in include_set else 0, 'disabled': branch["disabled"]
             }
 
             tree.append(lnk1)

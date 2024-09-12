@@ -63,7 +63,7 @@
             }
         });
 
-        let actions, addSet, removeSet, includedOptions, vessels, groups, data, data_copy, authorized, treeDiagram;
+        let actions, addSet, removeSet, includedOptions, vessels, groups, data, dataStr, authorized, treeDiagram;
         vessels = {{ vessels | safe }};
         vessels.forEach(vessel => {
             let vesselOption = document.getElementById("vesselOption"+vessel.nodeID);
@@ -86,13 +86,29 @@
             groups = {{ groups | safe }};
             data = {{ data | safe }};
             authorized =  {{ authorized | tojson }};
-            data_copy = "";
+
+            dataStr = "";
             try {
-                data_copy = JSON.stringify(data, null, 2);
+                let dataFlat = [];
+                function toJSON(root){
+                    let rootCopy = {...root};
+                    if (root.children) {
+                        rootCopy.children = root.children.map(child => child.id)
+                    }
+                    if (!root.data?.disabled) {
+                        dataFlat.push(rootCopy);
+                    }
+                    if (root.children) {
+                        root.children.forEach(child => toJSON(child));
+                    }
+                }
+                toJSON(data);
+                dataStr = JSON.stringify(dataFlat, null, 2);
             } catch (error){
                 console.log("Unable to prepare JSON output!");
                 console.log(error);
             }
+
             if (!authorized){
                 accessDiv.style.display = "block";
             }
@@ -100,7 +116,7 @@
         }
 
         function download(){
-            const blob = new Blob([data_copy], {type: 'application/json'});
+            const blob = new Blob([dataStr], {type: 'application/json'});
             let currentdate = new Date();
             let ext = "" + currentdate.getDate() + "-"
                 + (currentdate.getMonth()+1)  + "-"

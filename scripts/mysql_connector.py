@@ -42,7 +42,7 @@ class MySQLConnector:
             SELECT MAIN, BRANCH, CASE WHEN sequence = 0 THEN 1000 ELSE sequence END as sequence,
                 vl1originalID, vl2originalID, 
                 lyph_template_ID, node_colour, id, 
-                vl1originalvesselname, vl2originalvesselname from (
+                vl1originalvesselname, vl2originalvesselname, disabled from (
                 SELECT * FROM master_vascular WHERE MAIN in
                 (SELECT DISTINCT BRANCH FROM master_vascular, master_vascular_lyph_templates WHERE vl2originalID = VESSEL_FMA_ID and include)) as v
                 LEFT OUTER JOIN `master_vascular_lyph_templates` as lt ON v.vl1originalID = lt.VESSEL_FMA_ID
@@ -63,7 +63,7 @@ class MySQLConnector:
             obj = {"source": str(source), "target": str(item[1]), 'order': item[2],
                    'source_fma': str(item[3]), 'target_fma': str(item[4]),
                    'lyph_template': item[5], 'color': item[6], 'id': item[7],
-                   'source_name': item[8], 'target_name': item[9]}
+                   'source_name': item[8], 'target_name': item[9], 'disabled': item[10]}
             branches.append(obj)
             prev = source
         for b in branches:
@@ -84,6 +84,8 @@ class MySQLConnector:
             ADD_TO_GROUP = "AddToGroup"
             ADD_ORDER = "AddOrder"
             REMOVE_ORDER = "RemoveOrder"
+            DISABLE = "Disable"
+            ENABLE = "Enable"
 
         self.driver.autocommit = False
         self.update_include(include, exclude)
@@ -103,6 +105,8 @@ class MySQLConnector:
                     self.move_to_group(params)
                 elif action_type == ActionType.ADD_TO_GROUP:
                     self.add_to_group(params)
+                elif action_type == ActionType.DISABLE or action_type == ActionType.ENABLE:
+                    self.disable_enable(params)
             except Exception as e:
                 print("Failed to apply changes to the master_vascular: ", action_type, params)
                 print(e)
@@ -209,10 +213,20 @@ class MySQLConnector:
         cursor = self.driver.cursor()
         query = """INSERT INTO master_vascular (
             ID, MAIN, vl1originalID, vl1originalvesselname, BRANCH, vl2originalID, vl2originalvesselname, vessel_type, sequence) 
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"""
-        print("New record: ", max_id + 1)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"""
         values = (max_id + 1, source["nodeID"], source["fmaID"], source["name"], target["nodeID"], target["fmaID"], target["name"], target["vesselType"], order)
         cursor.execute(query, values)
+        print("ADD-TO-GROUP: ", max_id + 1)
+
+    # Set disable flag
+    def disable_enable(self, params):
+        branch_id = params[0]["branch"]
+        disabled = params[0]["disabled"]
+        query = """UPDATE master_vascular SET disabled={0} WHERE ID={1}""" \
+            .format(disabled, branch_id)
+        cursor = self.driver.cursor()
+        cursor.execute(query)
+        print("ENABLE-DISABLE, affected rows: ", cursor.rowcount)
 
     # Add order to an unordered branch - TEST needed
     def add_order(self, params):

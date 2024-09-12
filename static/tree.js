@@ -5,7 +5,9 @@ const ActionType = {
     MOVE_TO_GROUP: "MoveToGroup",
     ADD_TO_GROUP: "AddToGroup",
     ADD_ORDER: "AddOrder",
-    REMOVE_ORDER: "RemoveOrder"
+    REMOVE_ORDER: "RemoveOrder",
+    DISABLE: "Disable",
+    ENABLE: "Enable"
 };
 
 class Tree {
@@ -325,6 +327,22 @@ class Tree {
         toggleIncludeOption(d.data);
     }
 
+    enable(d){
+        this.hideMenu();
+        d.data.disabled = 0;
+        d3.select("#node_"+d.id);
+        this.update(this.root);
+        this.saveAction(ActionType.ENABLE, d.data);
+    }
+
+    disable(d){
+        this.hideMenu();
+        d.data.disabled = 1;
+        d3.select("#node_"+d.id).remove();
+        this.update(this.root);
+        this.saveAction(ActionType.DISABLE, d.data);
+    }
+
     findNode(nodeID){
         let nodes = this.tree.nodes(this.root);
         return nodes.find(e => e.id === nodeID);
@@ -396,6 +414,8 @@ class Tree {
             let btnRemoveOrder = document.getElementById("btnRemoveOrder");
             let btnInclude = document.getElementById("btnInclude");
             let btnExclude = document.getElementById("btnExclude");
+            let btnDisable = document.getElementById("btnDisable");
+            let btnEnable = document.getElementById("btnEnable");
 
             btnRemove.style.display = "none";
             btnMoveUp.style.display = "none";
@@ -404,6 +424,8 @@ class Tree {
             btnRemoveOrder.style.display = "none";
             btnInclude.style.display = "none";
             btnExclude.style.display = "none";
+            btnDisable.style.display = "none";
+            btnEnable.style.display = "none";
 
             if (d.data && !d.data.connector){
                 if (d.data.included){
@@ -412,6 +434,15 @@ class Tree {
                 } else {
                     btnInclude.style.display = "block";
                     btnInclude.onclick = e => this.include(d);
+                }
+                if (!d.children){
+                    if (d.data.disabled){
+                        btnEnable.style.display = "block";
+                        btnEnable.onclick = e => this.enable(d);
+                    } else {
+                        btnDisable.style.display = "block";
+                        btnDisable.onclick = e => this.disable(d);
+                    }
                 }
             }
 
@@ -488,6 +519,7 @@ class Tree {
             })
             .style("fill", function (d) {
                 if (d.id.includes("(")) return "white";
+                if (d.data?.disabled) return 'lightgrey';
                 return d.data?.color || "lightsteelblue";
             });
 
@@ -543,6 +575,7 @@ class Tree {
             .duration(duration)
             .attr("d", diagonal)
             .style("stroke", function (d) {
+                if (d.target.data?.disabled && !d.target.data?.connector) return 'lightgrey';
                 return d.target.data?.color || "#ccc";
             });
 
