@@ -157,7 +157,6 @@ class MySQLConnector:
         cursor.execute(query2a)
         self.driver.commit()
 
-
     def create_backup(self, user, comment):
         label = time.strftime('%Y%m%d%H%M%S')
         query1 = """CREATE TABLE {0} AS (SELECT * FROM master_vascular_lyph_templates);""".format("master_vascular_lyph_templates_" + label)

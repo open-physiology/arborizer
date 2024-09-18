@@ -230,8 +230,11 @@ def restore():
             # backup = request.form['backup']
             # if backup:
             #     mysql_db.create_backup("NK", "Auto before restore from " + version_id)
-            mysql_db.restore_from_backup(version)
-            flash("Main table restored from the backup!", 'success')
+            if version:
+                mysql_db.restore_from_backup(version)
+                flash("Main table restored from the backup!", 'success')
+            else:
+                flash("No version identifier is provided!", 'error')
         except Exception as e:
             flash("Failed to restore the data!", 'error')
             print(e)
