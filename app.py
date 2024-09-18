@@ -1,13 +1,15 @@
 import json
 from datetime import timedelta
-from flask import Flask, render_template, request, redirect, session, url_for
+from flask import Flask, render_template, request, redirect, session, url_for, flash
 from scripts.mysql_connector import MySQLConnector
 from scripts.node import Node
+from flask_toastr import Toastr
 
 app = Flask(__name__)
 app.config['SESSION_PERMANENT'] = True
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=24)
 app.secret_key = '***REMOVED***'
+toastr = Toastr(app)
 
 login = json.load(open('./credentials/api_mysql_db.json', 'r'))
 db_name, db_user, db_pwd, db_server, db_port, user_access = (login.values())
@@ -18,6 +20,7 @@ branches = []
 groups = {}
 root = {}
 vessels = []
+versions = []
 included_options = []
 
 
@@ -164,15 +167,20 @@ def create_tree():
             root.add_child(loose_roots[key])
 
 
-@app.route('/')
-def index():
-    global mysql_db, root, vessels
+def update_tree():
+    global mysql_db, root, vessels, versions
     mysql_db = MySQLConnector(db_name, db_user, db_pwd, db_server, db_port)
     create_tree()
     vessels = get_vascular_targets(vessel_map_all, branches)
+    versions = mysql_db.query_versions()
     authorized = session.get('logged_in')
     return render_template('index.html', data=json.dumps(root.as_dict()), groups=groups,
-                           vessels=vessels, includedOptions=included_options, authorized=authorized)
+                           vessels=vessels, includedOptions=included_options, authorized=authorized, versions=versions)
+
+
+@app.route('/')
+def index():
+    return update_tree()
 
 
 @app.route('/login', methods=["GET", "POST"])
@@ -180,6 +188,15 @@ def login():
     user_pwd = request.form['password']
     if user_pwd == user_access:
         session['logged_in'] = True
+        flash("Thanks, you can now edit the dataset! Do not forget to save your changes.", 'success')
+    else:
+        flash("Wrong password, please try again!", 'error')
+    return redirect(url_for("index"))
+
+
+@app.route('/logout', methods=["GET", "POST"])
+def logout():
+    session.pop('logged_in', None)
     return redirect(url_for("index"))
 
 
@@ -189,28 +206,54 @@ def edit():
         global mysql_db, root, vessels
         mysql_db = MySQLConnector(db_name, db_user, db_pwd, db_server, db_port)
 
-        actions = json.loads(request.args.get('actions'))
-        include = json.loads(request.args.get('include'))
-        exclude = json.loads(request.args.get('exclude'))
-        mysql_db.execute_actions(actions, include, exclude)
+        actions = json.loads(request.form['actions'])
+        include = json.loads(request.form['include'])
+        exclude = json.loads(request.form['exclude'])
+
+        error_msg = mysql_db.execute_actions(actions, include, exclude)
+        if not error_msg:
+            flash("Changes saved!", 'success')
+        else:
+            flash(error_msg, 'error')
+    else:
+        flash("You are not authorized to alter the database! Please, login!", 'error')
     return redirect(url_for("index"))
 
 
 @app.route('/restore', methods=['GET', 'POST'])
 def restore():
     if session.get('logged_in'):
-        global mysql_db, root, vessels
-        mysql_db = MySQLConnector(db_name, db_user, db_pwd, db_server, db_port)
-        mysql_db.restore_from_backup()
+        try:
+            global mysql_db, root, vessels
+            mysql_db = MySQLConnector(db_name, db_user, db_pwd, db_server, db_port)
+            version = request.form['version']
+            # backup = request.form['backup']
+            # if backup:
+            #     mysql_db.create_backup("NK", "Auto before restore from " + version_id)
+            mysql_db.restore_from_backup(version)
+            flash("Main table restored from the backup!", 'success')
+        except Exception as e:
+            flash("Failed to restore the data!", 'error')
+            print(e)
+    else:
+        flash("You are not authorized to alter the database! Please, login!", 'error')
     return redirect(url_for("index"))
 
 
 @app.route('/backup', methods=['GET', 'POST'])
 def backup():
     if session.get('logged_in'):
-        global mysql_db, root, vessels
-        mysql_db = MySQLConnector(db_name, db_user, db_pwd, db_server, db_port)
-        mysql_db.create_backup()
+        try:
+            global mysql_db, root, vessels
+            mysql_db = MySQLConnector(db_name, db_user, db_pwd, db_server, db_port)
+            user = request.form['user']
+            comment = request.form['comment']
+            timestamp = mysql_db.create_backup(user, comment)
+            flash("Created backup with timestamp: " + timestamp, 'success')
+        except Exception as e:
+            flash("Backup failed: " + e, 'error')
+    else:
+        flash("You are not authorized to alter the database! Please, login!", 'error')
     return redirect(url_for("index"))
 
 

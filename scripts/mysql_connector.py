@@ -1,4 +1,18 @@
 import mysql.connector
+from enum import Enum
+import time
+
+
+class ActionType(Enum):
+    REMOVE = "Remove"
+    MOVE_UP = "MoveUp"
+    MOVE_DOWN = "MoveDown"
+    MOVE_TO_GROUP = "MoveToGroup"
+    ADD_TO_GROUP = "AddToGroup"
+    ADD_ORDER = "AddOrder"
+    REMOVE_ORDER = "RemoveOrder"
+    DISABLE = "Disable"
+    ENABLE = "Enable"
 
 
 class MySQLConnector:
@@ -74,21 +88,9 @@ class MySQLConnector:
 
     # Edit the tree
     def execute_actions(self, entries, include, exclude):
-        from enum import Enum
-
-        class ActionType(Enum):
-            REMOVE = "Remove"
-            MOVE_UP = "MoveUp"
-            MOVE_DOWN = "MoveDown"
-            MOVE_TO_GROUP = "MoveToGroup"
-            ADD_TO_GROUP = "AddToGroup"
-            ADD_ORDER = "AddOrder"
-            REMOVE_ORDER = "RemoveOrder"
-            DISABLE = "Disable"
-            ENABLE = "Enable"
-
         self.driver.autocommit = False
         self.update_include(include, exclude)
+        res = ""
         for entry in entries:
             action_type = ActionType(entry["action"])
             params = entry["params"]
@@ -108,9 +110,9 @@ class MySQLConnector:
                 elif action_type == ActionType.DISABLE or action_type == ActionType.ENABLE:
                     self.disable_enable(params)
             except Exception as e:
-                print("Failed to apply changes to the master_vascular: ", action_type, params)
-                print(e)
+                res += "\nOperation failed: " + action_type
         self.driver.commit()
+        return res
 
     def update_include(self, include, exclude):
         cursor = self.driver.cursor()
@@ -123,23 +125,53 @@ class MySQLConnector:
                 .format(','.join(exclude))
             cursor.execute(query2)
 
-    def create_backup(self):
-        query1 = """DELETE FROM master_vascular_backup"""
-        query2 = """INSERT INTO master_vascular_backup SELECT * FROM  master_vascular"""
-        cursor = self.driver.cursor()
-        cursor.execute(query1)
-        cursor.execute(query2)
-        self.driver.commit()
-        print("BACKUP, affected rows: ", cursor.rowcount)
+    # def create_backup(self):
+    #     query1 = """DELETE FROM master_vascular_backup"""
+    #     query2 = """INSERT INTO master_vascular_backup SELECT * FROM  master_vascular"""
+    #     cursor = self.driver.cursor()
+    #     cursor.execute(query1)
+    #     cursor.execute(query2)
+    #     self.driver.commit()
+    #     print("BACKUP, affected rows: ", cursor.rowcount)
 
-    def restore_from_backup(self):
+    def query_versions(self):
+        cursor = self.driver.cursor()
+        query = """
+            select id, user, date, description from master_vascular_logs order by date desc"""
+        cursor.execute(query)
+        versions = []
+        for item in cursor:
+            obj = {"id": item[0], "user": item[1], "date": str(item[2]), "description": item[3]}
+            versions.append(obj)
+        return versions
+
+    def restore_from_backup(self, version_id):
         query1 = """DELETE FROM master_vascular"""
-        query2 = """INSERT INTO master_vascular SELECT * FROM  master_vascular_backup"""
+        query2 = """INSERT INTO master_vascular SELECT * FROM {0}""".format("master_vascular_" + version_id)
+        query1a = """DELETE FROM master_vascular_lyph_templates"""
+        query2a = """INSERT INTO master_vascular SELECT * FROM {0}""".format("master_vascular_lyph_templates_" + version_id)
         cursor = self.driver.cursor()
         cursor.execute(query1)
         cursor.execute(query2)
+        cursor.execute(query1a)
+        cursor.execute(query2a)
         self.driver.commit()
-        print("RESTORE, affected rows: ", cursor.rowcount)
+
+
+    def create_backup(self, user, comment):
+        label = time.strftime('%Y%m%d%H%M%S')
+        query1 = """CREATE TABLE {0} AS (SELECT * FROM master_vascular_lyph_templates);""".format("master_vascular_lyph_templates_" + label)
+        query2 = """CREATE TABLE {0} AS (SELECT * FROM master_vascular);""".format("master_vascular_" + label)
+        query = """INSERT INTO master_vascular_logs (id, user, date, description) VALUES (%s, %s, %s, %s)"""
+        now = time.strftime('%Y-%m-%d %H:%M:%S')
+        values = (label, user, now, comment)
+
+        cursor = self.driver.cursor()
+        cursor.execute(query1)
+        cursor.execute(query2)
+        cursor.execute(query, values)
+        self.driver.commit()
+        return now
 
     # Remove edge from master_vascular (tested)
     def remove_edge(self, params):
@@ -156,7 +188,6 @@ class MySQLConnector:
     # Update edge order in master_vascular after removing one, TEST needed
     def decrease_order(self, main, start):
         query = """UPDATE master_vascular SET sequence = sequence - 1 WHERE MAIN={0} and sequence>{1}""".format(main, start)
-        print(query)
         cursor = self.driver.cursor()
         cursor.execute(query)
         print("ADJUST ORDER, affected rows: ", cursor.rowcount)
@@ -167,8 +198,6 @@ class MySQLConnector:
         sequence1 = params[0]["order"]
         branch_id2 = params[1]["branch"]
         sequence2 = params[1]["order"]
-        print(branch_id1, sequence1)
-        print(branch_id2, sequence2)
         if sequence1 < 0 or sequence2 < 0:
             print("Something wrong with sequences: ", sequence1, sequence2)
             return

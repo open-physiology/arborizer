@@ -1,12 +1,73 @@
-<div id="access" class="w3-red" style="display: none;">
+<div id="divAccess" class="w3-red" style="display: none;">
     You are not authorized to edit! Please, login!
 </div>
-<div id="login" style="display: none;">
-    <button id="cross">&cross;</button>
-    <form action="/login" method="POST">
-        <label>password:
-             <input type="password" name="password" >
-        </label>
-        <input type="submit" value="login">
-    </form>
+
+<div id="divLogin" style="display: none;" class="w3-modal">
+    <div class="w3-modal-content">
+        <header class="w3-container w3-teal">
+            <button class="cross" onclick="document.getElementById('divLogin').style.display='none'">&cross;</button>
+            Welcome! Please insert the password!
+        </header>
+        <div class="w3-container w3-padding-24">
+            <form action="/login" method="POST">
+                <label>password:
+                     <input type="password" name="password" >
+                </label>
+                <input type="submit" value="login" class="w3-margin-left">
+            </form>
+        </div>
+    </div>
+</div>
+
+<form id="formSave" action="/edit" method="POST">
+      <input type="hidden" name="actions" value=""/>
+      <input type="hidden" name="include" value=""/>
+      <input type="hidden" name="exclude" value=""/>
+</form>
+
+<div id="divBackup" style="display: none;" class="w3-modal">
+    <div class="w3-modal-content">
+        <header class="w3-container w3-teal">
+            <button class="cross" onclick="document.getElementById('divBackup').style.display='none'">&cross;</button>
+            Create a labelled version of the current database?
+        </header>
+        <div class="w3-container w3-padding-24">
+            <form action="/backup" method="POST" style="display: block;" >
+                <label>user:<input type="text" name="user"></label>
+                <label>comment:<input type="text" name="comment"></label>
+                <input type="submit" value="backup" class="w3-margin-left">
+            </form>
+        </div>
+    </div>
+</div>
+
+<div id="divRestore" style="display: none;" class="w3-modal">
+    <div class="w3-modal-content">
+        <header class="w3-container w3-teal">
+            <button class="cross" onclick="document.getElementById('divRestore').style.display='none'">&cross;</button>
+            Restore database from a saved version?
+        </header>
+        <div class="w3-container w3-padding-24" style="overflow-y: auto">
+            <form action="/restore" method="POST" style="display: block;" >
+                <table class="w3-table w3-striped w3-border">
+                    <tr>
+                      <th>Version</th>
+                      <th>User</th>
+                      <th>Date</th>
+                      <th>Description</th>
+                    </tr>
+                    {% for version in versions %}
+                    <tr onclick="document.getElementById('version').value={{ version.id }}">
+                        <td>{{version.id}}</td>
+                        <td>{{version.user}}</td>
+                        <td>{{version.date}}</td>
+                        <td>{{version.description}}</td>
+                    </tr>
+                    {% endfor %}
+                </table>
+                <label>Selected version:<input id="version" type="text" readonly="readonly" name="version" required></label>
+                <input type="submit" value="restore" class="w3-margin-left">
+            </form>
+        </div>
+    </div>
 </div>

@@ -275,7 +275,7 @@ select option {
 	position: relative;
 }
 
-#cross{
+.cross{
 	position: absolute;
     left: 94%;
     top: 0;

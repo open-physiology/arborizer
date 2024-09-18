@@ -8,6 +8,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0,maximum-scale=1,user-scalable=no">
     <link rel="stylesheet" href="/static/style.css">
     <link rel="stylesheet" href="/static/w3.css">
+    {{ toastr.include_jquery() }}
+    {{ toastr.include_toastr_css() }}
+    {{ toastr.message() }}
 </head>
 <script src="{{url_for('static', filename='node_modules/file-saver/dist/FileSaver.js')}}"></script>
 
@@ -20,7 +23,8 @@
            <button id="btnHideInc" class="w3-bar-item w3-hover-light-grey" style="display: none" title="Hide included" onclick=closeNavInc()>×</button>
        </div>
        <div class="w3-border">
-           <button id="btnLogin" class="w3-bar-item w3-hover-light-grey" title="Login" onclick=login()>🔒</button>
+           <button id="btnLogin" class="w3-bar-item w3-hover-light-grey" title="Log in" onclick=login()>🔒</button>
+           <button id="btnLogout" class="w3-bar-item w3-hover-light-grey" title="Log out" onclick=logout()>🔓</button>
            <button id="btnBackup" class="w3-bar-item w3-hover-light-grey" title="Create backup" onclick=backup()>▤</button>
            <button id="btnRestore" class="w3-bar-item w3-hover-light-grey" title="Restore from backup" onclick=restore()>⮐</button>
            <button id="btnApply" class="w3-bar-item w3-hover-light-grey" title="Apply changes"
@@ -30,6 +34,7 @@
        <div class="w3-border">
            <button id="btnDownload" class="w3-bar-item w3-hover-light-grey" title="Download" onclick=download()>⇩</button>
        </div>
+       {{ toastr.include_toastr_js() }}
     </div>
 
     {% include 'login.html' %}
@@ -48,14 +53,20 @@
         let btnShowInc = document.getElementById("btnShowInc");
         let btnHideInc = document.getElementById("btnHideInc");
 
+        let btnLogin = document.getElementById("btnLogin");
+        let btnLogout = document.getElementById("btnLogout");
+
         let isChange = document.getElementById("isChange");
         let btnApply = document.getElementById("btnApply");
         let btnBackup = document.getElementById("btnBackup");
         let btnRestore = document.getElementById("btnRestore");
 
-        let loginDiv = document.getElementById("login");
-        let crossBtn = document.getElementById("cross");
-        let accessDiv = document.getElementById("access");
+        let divLogin = document.getElementById("divLogin");
+        let divAccess = document.getElementById("divAccess");
+        let divBackup = document.getElementById("divBackup");
+        let divRestore = document.getElementById("divRestore");
+
+        let formSave = document.getElementById("formSave");
 
         document.addEventListener("click", function(){
             if (contextMenu.style.display === "block"){
@@ -72,10 +83,6 @@
             }
         });
 
-        crossBtn.onclick = () => {
-            loginDiv.style.display = "none";
-        }
-
         prepareTreeView();
 
         function prepareTreeView() {
@@ -83,6 +90,7 @@
             addSet = new Set();
             removeSet = new Set();
             includedOptions = {{ includedOptions | safe }};
+            versions = {{ versions | safe }};
             groups = {{ groups | safe }};
             data = {{ data | safe }};
             authorized =  {{ authorized | tojson }};
@@ -108,10 +116,7 @@
                 console.log("Unable to prepare JSON output!");
                 console.log(error);
             }
-
-            if (!authorized){
-                accessDiv.style.display = "block";
-            }
+            setAuthorization()
             treeDiagram = new Tree(data, groups, actions);
         }
 
@@ -128,10 +133,26 @@
         }
 
         function login(){
+            divLogin.style.display = "block";
+        }
+
+        async function logout(){
+            if (window.confirm("Are you sure you want to log out?")) {
+                await fetch("/logout");
+                authorized = false
+                setAuthorization()
+            }
+        }
+
+        function setAuthorization(){
             if (authorized){
-                window.alert("You are already authorized to edit!");
+                btnLogin.style.display = "none";
+                btnLogout.style.display = "block";
+                divAccess.style.display = "none";
             } else {
-                loginDiv.style.display = "block";
+                btnLogout.style.display = "none";
+                btnLogin.style.display = "block";
+                divAccess.style.display = "block";
             }
         }
 
@@ -268,26 +289,20 @@
         async function backup(){
             if (!authorized){
                 window.alert("You are not authorized to perform this action! Please, login!");
-                return;
-            }
-            if (window.confirm("Backup master_vascular table?")) {
-                await fetch("/backup");
-                window.alert("Content of master_vascular copied to master_vascular_backup!")
+            } else {
+                divBackup.style.display = "block"
             }
         }
 
         async function restore(){
             if (!authorized){
                 window.alert("You are not authorized to perform this action! Please, login!");
-                return;
-            }
-            if (window.confirm("Restore master_vascular table from the latest backup?")) {
-                await fetch("/restore");
-                window.location.reload();
+            } else {
+                divRestore.style.display = "block"
             }
         }
 
-        async function applyChanges(){
+        function applyChanges(){
             if (!authorized){
                 window.alert("You are not authorized to perform this action! Please, login!");
                 return;
@@ -296,11 +311,11 @@
                 window.alert("No changes detected!");
             } else {
                 if (window.confirm("Save changes in the database?")) {
-                    let request = "/edit?actions=" + JSON.stringify(actions);
-                    request += '&include=' + JSON.stringify([...addSet]);
-                    request += '&exclude=' + JSON.stringify([...removeSet]);
-                    await fetch(request);
-                    window.location.reload();
+                    let params = document.querySelectorAll('#formSave input[type="hidden"]')
+                    params[0].value = JSON.stringify(actions);
+                    params[1].value = JSON.stringify([...addSet]);
+                    params[2].value = JSON.stringify([...removeSet]);
+                    formSave.submit();
                 }
             }
         }
