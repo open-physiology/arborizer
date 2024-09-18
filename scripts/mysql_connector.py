@@ -145,11 +145,15 @@ class MySQLConnector:
             versions.append(obj)
         return versions
 
-    def restore_from_backup(self, version_id):
-        query1 = """DELETE FROM master_vascular"""
-        query2 = """INSERT INTO master_vascular SELECT * FROM {0}""".format("master_vascular_" + version_id)
-        query1a = """DELETE FROM master_vascular_lyph_templates"""
-        query2a = """INSERT INTO master_vascular SELECT * FROM {0}""".format("master_vascular_lyph_templates_" + version_id)
+    def restore_from_backup(self, label):
+        # query1 = """DELETE FROM master_vascular"""
+        # query2 = """INSERT INTO master_vascular SELECT * FROM {0}""".format("master_vascular_" + version_id)
+        # query1a = """DELETE FROM master_vascular_lyph_templates"""
+        # query2a = """INSERT INTO master_vascular SELECT * FROM {0}""".format("master_vascular_lyph_templates_" + version_id)
+        query1 = """DROP TABLE master_vascular_lyph_templates"""
+        query2 = """DROP TABLE master_vascular"""
+        query1a = """CREATE TABLE master_vascular_lyph_templates AS (SELECT * FROM {0});""".format("master_vascular_lyph_templates_" + label)
+        query2a = """CREATE TABLE master_vascular AS (SELECT * FROM {0});""".format("master_vascular_" + label)
         cursor = self.driver.cursor()
         cursor.execute(query1)
         cursor.execute(query2)
