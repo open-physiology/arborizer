@@ -145,30 +145,39 @@ class MySQLConnector:
             versions.append(obj)
         return versions
 
-    def restore_from_backup(self, label):
-        # query1 = """DELETE FROM master_vascular"""
-        # query2 = """INSERT INTO master_vascular SELECT * FROM {0}""".format("master_vascular_" + version_id)
-        # query1a = """DELETE FROM master_vascular_lyph_templates"""
-        # query2a = """INSERT INTO master_vascular SELECT * FROM {0}""".format("master_vascular_lyph_templates_" + version_id)
-        query1 = """DROP TABLE master_vascular_lyph_templates"""
-        query2 = """DROP TABLE master_vascular"""
-        query1a = """CREATE TABLE master_vascular_lyph_templates AS (SELECT * FROM {0});""".format("master_vascular_lyph_templates_" + label)
-        query2a = """CREATE TABLE master_vascular AS (SELECT * FROM {0});""".format("master_vascular_" + label)
+    def restore_from_backup(self, label, backup_current):
+        label_new = time.strftime('%Y%m%d%H%M%S')
+        now_backup = time.strftime('%Y-%m-%d %H:%M:%S')
+        query1 = """CREATE TABLE master_vascular_lyph_templates_{0}_copy AS (SELECT * FROM master_vascular_lyph_templates_{0});""".format(label)
+        query2 = """CREATE TABLE master_vascular_{0}_copy AS (SELECT * FROM master_vascular_{0});""".format(label)
+        query = """RENAME TABLE 
+            master_vascular TO master_vascular_{0}, 
+            master_vascular_{1}_copy TO master_vascular, 
+            master_vascular_lyph_templates TO master_vascular_lyph_templates_{0}, 
+            master_vascular_lyph_templates_{1}_copy TO master_vascular_lyph_templates""".format(label_new, label)
+
         cursor = self.driver.cursor()
         cursor.execute(query1)
         cursor.execute(query2)
-        cursor.execute(query1a)
-        cursor.execute(query2a)
+        cursor.execute(query)
+
+        if backup_current:
+            query_add = """INSERT INTO master_vascular_logs (id, user, date, description) VALUES (%s, %s, %s, %s)"""
+            values = (label_new, "System", now_backup, "Auto-backup before restore " + label)
+            cursor.execute(query_add, values)
+        else:
+            query_drop = """DROP TABLE master_vascular_{0}, master_vascular_lyph_templates_{0}""".format(label_new)
+            cursor.execute(query_drop)
+
         self.driver.commit()
 
     def create_backup(self, user, comment):
         label = time.strftime('%Y%m%d%H%M%S')
+        now = time.strftime('%Y-%m-%d %H:%M:%S')
+        values = (label, user, now, comment)
         query1 = """CREATE TABLE {0} AS (SELECT * FROM master_vascular_lyph_templates);""".format("master_vascular_lyph_templates_" + label)
         query2 = """CREATE TABLE {0} AS (SELECT * FROM master_vascular);""".format("master_vascular_" + label)
         query = """INSERT INTO master_vascular_logs (id, user, date, description) VALUES (%s, %s, %s, %s)"""
-        now = time.strftime('%Y-%m-%d %H:%M:%S')
-        values = (label, user, now, comment)
-
         cursor = self.driver.cursor()
         cursor.execute(query1)
         cursor.execute(query2)

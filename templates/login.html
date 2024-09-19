@@ -65,6 +65,8 @@
                     </tr>
                     {% endfor %}
                 </table>
+                <input type="checkbox" name="current" id="current"/>
+                <label for="backup_current" class="w3-margin-right">Backup current?</label>
                 <label>Selected version:<input id="version" type="text" readonly="readonly" name="version" required></label>
                 <input type="submit" value="restore" class="w3-margin-left">
             </form>

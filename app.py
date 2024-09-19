@@ -180,6 +180,7 @@ def update_tree():
 
 @app.route('/')
 def index():
+
     return update_tree()
 
 
@@ -227,11 +228,10 @@ def restore():
             global mysql_db, root, vessels
             mysql_db = MySQLConnector(db_name, db_user, db_pwd, db_server, db_port)
             version = request.form['version']
-            # backup = request.form['backup']
-            # if backup:
-            #     mysql_db.create_backup("NK", "Auto before restore from " + version_id)
+            backup_current = request.form.get('current') != None
+            print(backup_current)
             if version:
-                mysql_db.restore_from_backup(version)
+                mysql_db.restore_from_backup(version, backup_current)
                 flash("Main table restored from the backup!", 'success')
             else:
                 flash("No version identifier is provided!", 'error')
