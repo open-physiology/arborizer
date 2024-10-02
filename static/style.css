@@ -211,8 +211,32 @@ select option {
     text-decoration-line: line-through;
 }
 
-.side_panel{
-    width: 600px;
+#vesselList{
+    width: 800px;
+}
+
+#includedList{
+    width: 1050px;
+}
+
+/*#templateList{*/
+/*    margin-left: 1100px;*/
+/*}*/
+
+.restricted{
+   display: inline-block;
+   width: 600px;
+   white-space: nowrap;
+   overflow: hidden;
+   text-overflow: ellipsis; /* This is where the magic happens. */
+}
+
+.restricted2{
+   display: inline-block;
+   width: 300px;
+   white-space: nowrap;
+   overflow: hidden;
+   text-overflow: ellipsis; /* This is where the magic happens. */
 }
 
 .data_panel{
@@ -234,25 +258,14 @@ select option {
 }
 
 .data_part ul {
-    padding: 0;
-    margin: 0;
+    padding: 2px;
+    margin-left: 2px;
     min-width: 100px;
     list-style: none;
 }
 
 .data_part ul li:hover {
-    background: darkgray;
-}
-
-.data_part button {
-    width: 100%;
-    text-align: left;
-}
-
-.data_part button:hover {
-    text-decoration: none;
-    color: red;
-    background: darkgray;
+    background: lightgray;
 }
 
 #ovrly{
@@ -279,6 +292,11 @@ select option {
 	position: absolute;
     left: 94%;
     top: 0;
+	border: 0;
+	background-color: transparent;
+}
+
+.open{
 	border: 0;
 	background-color: transparent;
 }

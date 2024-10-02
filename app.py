@@ -1,6 +1,6 @@
 import json
 from datetime import timedelta
-from flask import Flask, render_template, request, redirect, session, url_for, flash
+from flask import Flask, render_template, request, redirect, session, url_for, flash, g, current_app
 from scripts.mysql_connector import MySQLConnector
 from scripts.node import Node
 from flask_toastr import Toastr
@@ -14,14 +14,17 @@ toastr = Toastr(app)
 login = json.load(open('./credentials/api_mysql_db.json', 'r'))
 db_name, db_user, db_pwd, db_server, db_port, user_access = (login.values())
 
-mysql_db = None
-vessel_map_all = {}
-branches = []
-groups = {}
-root = {}
-vessels = []
-versions = []
-included_options = []
+
+def load_lyph_templates():
+    try:
+        login = json.load(open('./credentials/api_mysql_db_wbkg.json', 'r'))
+        wbkg_name, wbkg_user, wbkg_pwd, wbkg_server, wbkg_port = (login.values())
+        wbkg_db = MySQLConnector(wbkg_name, wbkg_user, wbkg_pwd, wbkg_server, wbkg_port)
+        return wbkg_db.query_lyphs()
+    except Exception as e:
+        flash("Failed to load lyph templates!")
+        print(e)
+    return []
 
 
 def get_vascular_targets(node_map, edges):
@@ -37,18 +40,18 @@ def get_vascular_targets(node_map, edges):
 
 
 def create_tree():
-    global mysql_db, vessel_map_all, branches, groups, root, vessels, included_options
+    g.included_options = g.mysql_db.query_included()
+    g.groups = {}
 
-    included_options = mysql_db.query_included()
-    vessel_map_all = mysql_db.query_vascular_nodes_map()
-    branches = mysql_db.query_vascular_edges()
-    groups = {}
+    vessel_map_all = g.mysql_db.query_vascular_nodes_map()
+    branches = g.mysql_db.query_vascular_edges()
+
     node_map = {}
     include_set = set()
-    for entry in included_options:
+    for entry in g.included_options:
         if entry["included"]:
             include_set.add(entry["fmaID"])
-    # print("Included:", include_set)
+    g.vessels = get_vascular_targets(vessel_map_all, branches)
 
     for branch in branches:
         s_id = branch["source"]
@@ -87,7 +90,7 @@ def create_tree():
             source_name = s["name"]
             lyph_template = "wbkg:" + branch["lyph_template"] if branch["lyph_template"] else ""
             group_id = "g_" + s_id
-            groups[group_id] = {"id": group_id, "name": source_name}
+            g.groups[group_id] = {"id": group_id, "name": source_name}
 
         t = node_map[t_id]
 
@@ -143,8 +146,8 @@ def create_tree():
 
     nodes = {}
     root_id = "all"
-    root = Node(root_id, "All", None)
-    nodes[root.id] = root
+    g.root = Node(root_id, "All", None)
+    nodes[g.root.id] = g.root
     loose_roots = {}
     root_parents = {}
     for edge in tree:
@@ -164,23 +167,23 @@ def create_tree():
         if key in root_parents:
             root_parents[key].children = loose_roots[key].children
         else:
-            root.add_child(loose_roots[key])
+            g.root.add_child(loose_roots[key])
 
 
 def update_tree():
-    global mysql_db, root, vessels, versions
-    mysql_db = MySQLConnector(db_name, db_user, db_pwd, db_server, db_port)
+    if 'mysql_db' not in g or not g.mysql_db.is_connected():
+        g.mysql_db = MySQLConnector(db_name, db_user, db_pwd, db_server, db_port)
     create_tree()
-    vessels = get_vascular_targets(vessel_map_all, branches)
-    versions = mysql_db.query_versions()
+    lyph_templates = load_lyph_templates()
+    versions = g.mysql_db.query_versions()
     authorized = session.get('logged_in')
-    return render_template('index.html', data=json.dumps(root.as_dict()), groups=groups,
-                           vessels=vessels, includedOptions=included_options, authorized=authorized, versions=versions)
+    return render_template('index.html', data=json.dumps(g.root.as_dict()), groups=g.groups,
+                           vessels=g.vessels, includedOptions=g.included_options, authorized=authorized, versions=versions,
+                           lyphTemplates=lyph_templates)
 
 
 @app.route('/')
 def index():
-
     return update_tree()
 
 
@@ -204,14 +207,15 @@ def logout():
 @app.route('/edit', methods=['GET', 'POST'])
 def edit():
     if session.get('logged_in'):
-        global mysql_db, root, vessels
-        mysql_db = MySQLConnector(db_name, db_user, db_pwd, db_server, db_port)
+        if 'mysql_db' not in g or not g.mysql_db.is_connected():
+            g.mysql_db = MySQLConnector(db_name, db_user, db_pwd, db_server, db_port)
 
         actions = json.loads(request.form['actions'])
         include = json.loads(request.form['include'])
         exclude = json.loads(request.form['exclude'])
+        update = json.loads(request.form['update'])
 
-        error_msg = mysql_db.execute_actions(actions, include, exclude)
+        error_msg = g.mysql_db.execute_actions(actions, include, exclude, update)
         if not error_msg:
             flash("Changes saved!", 'success')
         else:
@@ -225,13 +229,12 @@ def edit():
 def restore():
     if session.get('logged_in'):
         try:
-            global mysql_db, root, vessels
-            mysql_db = MySQLConnector(db_name, db_user, db_pwd, db_server, db_port)
+            if 'mysql_db' not in g or not g.mysql_db.is_connected():
+                g.mysql_db = MySQLConnector(db_name, db_user, db_pwd, db_server, db_port)
             version = request.form['version']
             backup_current = request.form.get('current') != None
-            print(backup_current)
             if version:
-                mysql_db.restore_from_backup(version, backup_current)
+                g.mysql_db.restore_from_backup(version, backup_current)
                 flash("Main table restored from the backup!", 'success')
             else:
                 flash("No version identifier is provided!", 'error')
@@ -247,11 +250,11 @@ def restore():
 def backup():
     if session.get('logged_in'):
         try:
-            global mysql_db, root, vessels
-            mysql_db = MySQLConnector(db_name, db_user, db_pwd, db_server, db_port)
+            if 'mysql_db' not in g or not g.mysql_db.is_connected():
+                g.mysql_db = MySQLConnector(db_name, db_user, db_pwd, db_server, db_port)
             user = request.form['user']
             comment = request.form['comment']
-            timestamp = mysql_db.create_backup(user, comment)
+            timestamp = g.mysql_db.create_backup(user, comment)
             flash("Created backup with timestamp: " + timestamp, 'success')
         except Exception as e:
             flash("Backup failed: " + e, 'error')
@@ -260,6 +263,15 @@ def backup():
     return redirect(url_for("index"))
 
 
+def close_mysql_db():
+    mysql_db = g.pop('mysql_db', None)
+
+    if mysql_db is not None and mysql_db.is_connected():
+        mysql_db.close()
+
+
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host='127.0.0.1', port='5050')
+    app.app_context().push()
     session.pop('logged_in', None)
+    current_app.teardown_appcontext(close_mysql_db)

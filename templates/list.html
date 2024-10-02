@@ -10,10 +10,10 @@
     </ul>
 </div>
 
-<div id="vesselList" class="w3-left side_panel data_panel" style="display: none">
+<div id="vesselList" class="w3-left data_panel" style="display: none">
     <label for="vesselInput"></label>
     <input type="text" style="width:100%"
-           id="vesselInput" class="search" placeholder="🔍" name="vesselInput" onkeyup="filterOptions()"/>
+           id="vesselInput" class="search" placeholder="🔍" name="vesselInput" onkeyup="filterVesselOptions()"/>
     <div class="data_part">
         <ul id="ulVessels">
             {% for node in vessels %}
@@ -25,23 +25,209 @@
     </div>
 </div>
 
-<div id="includedList" class="w3-left side_panel data_panel" style="display: none">
+<div id="includedList" class="w3-left data_panel" style="display: none">
     <div class="w3-border-bottom">
-        <input type="checkbox" id=onlyIncluded" name="onlyIncluded" onchange="toggleIncluded(this)"/> <label for=onlyIncluded"></label>Included
+        <input type="checkbox" id=onlyIncluded" name="onlyIncluded" onchange="toggleIncluded(this)"/> <label
+            for=onlyIncluded"></label>Included
     </div>
     <label for="includedInput"></label>
-    <input type="text" style="width:100%" id="includedInput" class="search" placeholder="🔍" name="includedInput" onkeyup="filterIncludeOptions()"/>
+    <input type="text" style="width:100%" id="includedInput" class="search" placeholder="🔍" name="includedInput"
+           onkeyup="filterIncludeOptions()"/>
     <div class="data_part">
         <ul id="ulIncluded">
-            {% for node in includedOptions %}
-                <li id="includeOption{{ node.fmaID }}">
-                    <label>
-                        <input type="checkbox" value="{{ node.fmaID }}" {{ 'checked' if node.included == 1 else '' }} name="includedCheckbox"
-                               onchange="toggleIncludeOption({{ node }})">
-                    </label>
-                    {{ node.fmaID }}: {{ node.name }}
+            {% for option in includedOptions %}
+                <li id="includeOption{{ option.fmaID }}">
+                    <span class="restricted">
+                        <label style="vertical-align:top;">
+                            <input type="checkbox"
+                                   value="{{ option.fmaID }}" {{ 'checked' if option.included == 1 else '' }}
+                                   name="includedCheckbox"
+                                   onchange="toggleIncludeOption({{ option }})">
+                        </label>
+                        {{ option.fmaID }}: {{ option.name }}
+                    </span>
+                    <span class="w3-right">
+                        <span class="restricted2 w3-right-align" id="includeOptionTemplate{{ option.fmaID }}">
+                            {{ option.lyphTemplate }}
+                        </span>
+                        <span class="w3-hover-light-grey w3-margin-left w3-margin-right w3-right">
+                            <input type="button" id="btnSelect{{ option.fmaID }}"
+                                 class="open"
+                                 title="Select template" onclick=selectTemplate({{option.fmaID}}) value="»"/>
+                        </span>
+                    </span>
                 </li>
             {% endfor %}
         </ul>
     </div>
 </div>
+
+<div id="templateList" class="w3-modal" style="display: none">
+    <div class="w3-modal-content">
+        <header class="w3-container w3-teal">
+            <button class="cross" onclick="document.getElementById('templateList').style.display='none'">&cross;</button>
+            Select a lyph template
+        </header>
+        <div class="w3-left-align w3-padding">
+            <div>
+                <label for="templateInput"></label>
+                <input type="text" style="width:100%"
+                       id="templateInput" class="search" placeholder="🔍" name="templateInput" onkeyup="filterTemplateOptions()"/>
+            </div>
+            <div class="w3-right w3-margin-bottom">
+                <input disabled id="templateSelected" class="restricted2 w3-right-align w3-red"/>
+                <input id="btnAssignTemplate" type="button" value="Assign">
+            </div>
+            <div class="data_part">
+                <ul id="ulTemplates">
+                    <li id="noTemplate">---</li>
+                    {% for lyph in lyphTemplates %}
+                        <li value="{{ lyph.fmaID }}" id="templateOption:{{ lyph.id }}">
+                            {{ lyph.id }}: {{ lyph.name }} ({{ lyph.ontologyTerms }})
+                        </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let vesselPanel = document.getElementById("vesselList");
+    let includedPanel = document.getElementById("includedList");
+
+    let btnShow = document.getElementById("btnShow");
+    let btnHide = document.getElementById("btnHide");
+    let btnShowInc = document.getElementById("btnShowInc");
+    let btnHideInc = document.getElementById("btnHideInc");
+
+    function openNav() {
+        vesselPanel.style.display = "block";
+        tree.style.marginLeft = "650px";
+        btnHide.style.display = "block";
+        btnShow.style.display = "none";
+        btnShowInc.style.display = "none";
+    }
+
+    function closeNav() {
+        vesselPanel.style.display = "none";
+        tree.style.marginLeft = "50px";
+        btnHide.style.display = "none";
+        btnShow.style.display = "block";
+        btnShowInc.style.display = "block";
+    }
+
+    function openNavInc() {
+        includedPanel.style.display = "block";
+        tree.style.marginLeft = "1100px";
+        btnHideInc.style.display = "block";
+        btnShowInc.style.display = "none";
+        btnShow.style.display = "none";
+    }
+
+    function closeNavInc() {
+        includedPanel.style.display = "none";
+        tree.style.marginLeft = "50px";
+        btnHideInc.style.display = "none";
+        btnShowInc.style.display = "block";
+        btnShow.style.display = "block";
+    }
+
+    function selectTemplate(fmaID) {
+       let templateWindow = document.getElementById("templateList");
+       templateWindow.style.display = "block";
+       let btnAssignTemplate = document.getElementById("btnAssignTemplate");
+       let selectedInput = document.getElementById("templateSelected");
+       // Clear template
+       let noTemplate= document.getElementById("noTemplate");
+       noTemplate.onclick = () => {
+            selectedInput.value = "";
+            btnAssignTemplate.onclick = () => {
+                assignTemplate(fmaID, "---");
+            }
+       }
+       lyphTemplates.forEach(template => {
+            let templateOption = document.getElementById("templateOption:"+template.id);
+            if (templateOption) {
+                //AssignTemplate
+                templateOption.onclick = () => {
+                   selectedInput.value = template.id;
+                   btnAssignTemplate.onclick = () => {
+                       assignTemplate(fmaID, template.id);
+                   }
+                };
+            }
+        });
+    }
+
+    function assignTemplate(fmaID, templateID){
+        let templateWindow = document.getElementById("templateList");
+        templateWindow.style.display = "none";
+        let includeOptionTemplate = document.getElementById("includeOptionTemplate"+fmaID);
+        includeOptionTemplate.innerText = templateID;
+        isChange.style.display = 'inline';
+        updateMap[fmaID] = templateID === "---"? "": templateID;
+    }
+
+    function filterVesselOptions() {
+        let input, filter, ul, li, btn, i, txtValue;
+        input = document.getElementById("vesselInput");
+        filter = input.value.toUpperCase();
+        ul = document.getElementById("ulVessels");
+        li = ul.getElementsByTagName("li");
+        for (i = 0; i < li.length; i++) {
+            txtValue = li[i].textContent;
+            if (txtValue.toUpperCase().indexOf(filter) > -1) {
+                li[i].style.display = "";
+            } else {
+                li[i].style.display = "none";
+            }
+        }
+    }
+
+    function filterTemplateOptions() {
+        let input, filter, ul, li, btn, i, txtValue;
+        input = document.getElementById("templateInput");
+        filter = input.value.toUpperCase();
+        ul = document.getElementById("ulTemplates");
+        li = ul.getElementsByTagName("li");
+        for (i = 0; i < li.length; i++) {
+            txtValue = li[i].textContent;
+            if (txtValue.toUpperCase().indexOf(filter) > -1) {
+                li[i].style.display = "";
+            } else {
+                li[i].style.display = "none";
+            }
+        }
+    }
+
+    function filterIncludeOptions() {
+        let input = document.getElementById("includedInput");
+        let filter = input.value.toUpperCase();
+        let ul = document.getElementById("ulIncluded");
+        let li_list = ul.getElementsByTagName("li");
+        for (let i = 0; i < li_list.length; i++) {
+            let txtValue = li_list[i].textContent;
+            if (txtValue.toUpperCase().indexOf(filter) > -1) {
+                li_list[i].style.display = "";
+            } else {
+                li_list[i].style.display = "none";
+            }
+        }
+    }
+
+    function toggleIncluded(checkbox) {
+        let ul = document.getElementById("ulIncluded");
+        let li_list = ul.getElementsByTagName("li");
+        for (let i = 0; i < li_list.length; i++) {
+            let entries = li_list[i].getElementsByTagName('input');
+            li_list[i].style.display = "";
+            if (checkbox.checked && entries.length > 0) {
+                let isChecked = entries[0].getAttribute('checked');
+                if (isChecked == null) {
+                    li_list[i].style.display = "none";
+                }
+            }
+        }
+    }
+</script>

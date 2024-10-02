@@ -42,16 +42,8 @@
     {% include 'tree.html' %}
 
     <script>
-
-        let vesselPanel = document.getElementById("vesselList");
-        let includedPanel = document.getElementById("includedList");
         let contextMenu = document.getElementById("listContextMenu");
         let tree = document.getElementById("tree");
-
-        let btnShow = document.getElementById("btnShow");
-        let btnHide = document.getElementById("btnHide");
-        let btnShowInc = document.getElementById("btnShowInc");
-        let btnHideInc = document.getElementById("btnHideInc");
 
         let btnLogin = document.getElementById("btnLogin");
         let btnLogout = document.getElementById("btnLogout");
@@ -74,7 +66,7 @@
             }
         });
 
-        let actions, addSet, removeSet, includedOptions, vessels, groups, data, dataStr, authorized, treeDiagram;
+        let actions, addSet, removeSet, updateMap, includedOptions, vessels, groups, data, dataStr, authorized, treeDiagram;
         vessels = {{ vessels | safe }};
         vessels.forEach(vessel => {
             let vesselOption = document.getElementById("vesselOption"+vessel.nodeID);
@@ -83,12 +75,16 @@
             }
         });
 
+        lyphTemplates = {{ lyphTemplates | safe }};
+
         prepareTreeView();
 
         function prepareTreeView() {
             actions = [];
             addSet = new Set();
             removeSet = new Set();
+            updateMap = {};
+
             includedOptions = {{ includedOptions | safe }};
             versions = {{ versions | safe }};
             groups = {{ groups | safe }};
@@ -177,52 +173,6 @@
             }
         }
 
-        function filterOptions() {
-            let input, filter, ul, li, btn, i, txtValue;
-            input = document.getElementById("vesselInput");
-            filter = input.value.toUpperCase();
-            ul = document.getElementById("ulVessels");
-            li = ul.getElementsByTagName("li");
-            for (i = 0; i < li.length; i++) {
-                txtValue = li[i].textContent;
-                if (txtValue.toUpperCase().indexOf(filter) > -1) {
-                    li[i].style.display = "";
-                } else {
-                    li[i].style.display = "none";
-                }
-            }
-        }
-
-        function filterIncludeOptions() {
-            let input = document.getElementById("includedInput");
-            let filter = input.value.toUpperCase();
-            let ul = document.getElementById("ulIncluded");
-            let li_list = ul.getElementsByTagName("li");
-            for (let i = 0; i < li_list.length; i++) {
-                let txtValue = li_list[i].textContent;
-                if (txtValue.toUpperCase().indexOf(filter) > -1) {
-                    li_list[i].style.display = "";
-                } else {
-                    li_list[i].style.display = "none";
-                }
-            }
-        }
-
-        function toggleIncluded(checkbox){
-            let ul = document.getElementById("ulIncluded");
-            let li_list = ul.getElementsByTagName("li");
-            for (let i = 0; i < li_list.length; i++) {
-                let entries = li_list[i].getElementsByTagName('input');
-                li_list[i].style.display = "";
-                if (checkbox.checked && entries.length > 0){
-                    let isChecked = entries[0].getAttribute('checked');
-                    if (isChecked == null) {
-                        li_list[i].style.display = "none";
-                    }
-                }
-            }
-        }
-
         function hideListMenu() {
             contextMenu.style.display = "none"
         }
@@ -240,38 +190,6 @@
 
         function saveAction(action, node) {
             actions.push({"action": action, "node": node});
-        }
-
-        function openNav() {
-          vesselPanel.style.display = "block";
-          tree.style.marginLeft = "650px";
-          btnHide.style.display = "block";
-          btnShow.style.display = "none";
-          btnShowInc.style.display = "none";
-        }
-
-        function closeNav() {
-          vesselPanel.style.display = "none";
-          tree.style.marginLeft = "50px";
-          btnHide.style.display = "none";
-          btnShow.style.display = "block";
-          btnShowInc.style.display = "block";
-        }
-
-        function openNavInc() {
-          includedPanel.style.display = "block";
-          tree.style.marginLeft = "650px";
-          btnHideInc.style.display = "block";
-          btnShowInc.style.display = "none";
-          btnShow.style.display = "none";
-        }
-
-        function closeNavInc() {
-          includedPanel.style.display = "none";
-          tree.style.marginLeft = "50px";
-          btnHideInc.style.display = "none";
-          btnShowInc.style.display = "block";
-          btnShow.style.display = "block";
         }
 
         function toggleIncludeOption(node){
@@ -307,7 +225,7 @@
                 window.alert("You are not authorized to perform this action! Please, login!");
                 return;
             }
-            if (actions.length === 0 && addSet.size === 0 && removeSet.size === 0){
+            if (actions.length === 0 && addSet.size === 0 && removeSet.size === 0 && updateMap.size === 0){
                 window.alert("No changes detected!");
             } else {
                 if (window.confirm("Save changes in the database?")) {
@@ -315,6 +233,7 @@
                     params[0].value = JSON.stringify(actions);
                     params[1].value = JSON.stringify([...addSet]);
                     params[2].value = JSON.stringify([...removeSet]);
+                    params[3].value = JSON.stringify(updateMap);
                     formSave.submit();
                 }
             }

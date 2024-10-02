@@ -25,6 +25,21 @@ class MySQLConnector:
     test_mode = True
     results = []
 
+    def is_connected(self):
+        return self.driver.is_connected()
+
+    def query_lyphs(self):
+        cursor = self.driver.cursor()
+        cursor.execute('SELECT * FROM lyphs where isTemplate=1')
+        col_names = cursor.column_names
+        items = []
+        for item in cursor:
+            row = dict(zip(col_names, item))
+            lyph = {"id": row.pop('ID'), "name": row.pop('label'), "ontologyTerms": row.pop('ontologyTerm')}
+            items.append(lyph)
+        cursor.close()
+        return items
+
     def query_included(self):
         cursor = self.driver.cursor()
         query = """
@@ -33,7 +48,8 @@ class MySQLConnector:
         cursor.execute(query)
         nodes = []
         for item in cursor:
-            obj = {"fmaID": str(item[0]), "name": item[1], "included": item[2]}
+            obj = {"fmaID": str(item[0]), "name": item[1], "included": item[2],
+                   "lyphTemplate": item[3] if item[3] else "---"}
             nodes.append(obj)
         return nodes
 
@@ -87,9 +103,9 @@ class MySQLConnector:
         return branches
 
     # Edit the tree
-    def execute_actions(self, entries, include, exclude):
+    def execute_actions(self, entries, include, exclude, update):
         self.driver.autocommit = False
-        self.update_include(include, exclude)
+        self.update_include(include, exclude, update)
         res = ""
         for entry in entries:
             action_type = ActionType(entry["action"])
@@ -114,7 +130,7 @@ class MySQLConnector:
         self.driver.commit()
         return res
 
-    def update_include(self, include, exclude):
+    def update_include(self, include, exclude, update):
         cursor = self.driver.cursor()
         if len(include) > 0:
             query1 = """update master_vascular_lyph_templates as v set v.include=1 where v.VESSEL_FMA_ID in ({0})""" \
@@ -124,15 +140,31 @@ class MySQLConnector:
             query2 = """update master_vascular_lyph_templates as v set v.include=NULL where v.VESSEL_FMA_ID in ({0})""" \
                 .format(','.join(exclude))
             cursor.execute(query2)
+        for key in update:
+            print(key, update[key])
+            self.update_template(key, update[key])
 
-    # def create_backup(self):
-    #     query1 = """DELETE FROM master_vascular_backup"""
-    #     query2 = """INSERT INTO master_vascular_backup SELECT * FROM  master_vascular"""
-    #     cursor = self.driver.cursor()
-    #     cursor.execute(query1)
-    #     cursor.execute(query2)
-    #     self.driver.commit()
-    #     print("BACKUP, affected rows: ", cursor.rowcount)
+    def update_template(self, fma_id, lyph_template_id):
+        cursor = self.driver.cursor()
+        query = """update master_vascular_lyph_templates as v set v.lyph_template_ID=%s where v.VESSEL_FMA_ID=%s"""
+        values = (lyph_template_id, fma_id)
+        cursor.execute(query, values)
+        print("UPDATE, affected rows: ", cursor.rowcount)
+
+    # Delete duplicates from master_vascular
+    # q = """select * from master_vascular as x where x.ID in (
+    #     select SUBSTRING_INDEX(ids, ',', -1) AS redundant from (
+    #     select v.vl1originalID, v.vl2originalID, GROUP_CONCAT(id) as ids, GROUP_CONCAT(sequence) as seqs from master_vascular as v
+    #     group by v.vl1originalID, v.vl2originalID
+    #     having count(*) > 1) as v1)
+    #     order by x.vl1originalID, x.vl2originalID"""
+    # Clean vessels list
+    # """select * from master_vascular_vessels as y where y.node_id not in (
+    # select distinct * from (
+    # select v.main as node from master_vascular as v
+    # union
+    # select v.branch as node from master_vascular as v) as x) order by y.fma_id"""
+    # select x.name, count(*) from master_vascular_vessels as x group by x.name having count(*) > 1
 
     def query_versions(self):
         cursor = self.driver.cursor()
