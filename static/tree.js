@@ -2,6 +2,7 @@ const ActionType = {
     REMOVE: "Remove",
     MOVE_UP: "MoveUp",
     MOVE_DOWN: "MoveDown",
+    SET_ORDER: "SetOrder",
     MOVE_TO_GROUP: "MoveToGroup",
     ADD_TO_GROUP: "AddToGroup",
     ADD_ORDER: "AddOrder",
@@ -86,7 +87,7 @@ class Tree {
         }
     }
 
-    // Move a node up => swap sequences of two edges in the DB
+    //Move a node up => swap sequences of two edges in the DB
     moveUp(d) {
         this.hideMenu();
         let pred = d.parent?.parent;
@@ -118,7 +119,7 @@ class Tree {
         }
     }
 
-    // Move a node down => swap sequences of two edges in the DB
+    //Move a node down => swap sequences of two edges in the DB
     moveDown(d) {
         this.hideMenu();
         if (d.parent && d.children?.length > 1) {
@@ -150,7 +151,7 @@ class Tree {
         }
     }
 
-    // Move a node to another group => update an edge's MAIN (source) field in the DB, update sequences of the follow-up edges
+    //Move a node to another group => update an edge's MAIN (source) field in the DB, update sequences of the follow-up edges
     moveToGroup(d, group) {
         this.hideMenu();
         let groupRoot = this.findNode(group.id.substring(2));
@@ -194,7 +195,7 @@ class Tree {
         }
     }
 
-    // Add node to a group
+    //Add node to a group
     addToGroup(target, group){
         let groupRoot = this.findNode(group.id.substring(2));
         if (groupRoot?.children) {
@@ -249,6 +250,131 @@ class Tree {
         }
     }
 
+    //Open a from to enter a new node order
+    enterOrder(d) {
+        this.hideMenu();
+        if (!d.data.order){
+            return;
+        }
+        let max = 1;
+        let curr = d;
+        while (curr.children?.length > 1 && curr.children[1].data.order){
+            curr = curr.children[1];
+        }
+        if (curr.data.order){
+            max = curr.data.order;
+        }
+
+        if (max <=1){
+            alert("Not possible to set up a different order to this node");
+            return;
+        }
+
+        const popupContainer = document.getElementById('popupContainer');
+        const overlay = document.getElementById('overlay');
+        const closePopupBtn = document.getElementById('closePopupBtn');
+        const submitBtn = document.getElementById('submitBtn');
+        const numberInput = document.getElementById('numberInput');
+        popupContainer.style.display = 'block';
+        overlay.style.display = 'block';
+        numberInput.value = d.data.order;
+        numberInput.max = max;
+
+        closePopupBtn.addEventListener('click', () => {
+            popupContainer.style.display = 'none';
+            overlay.style.display = 'none';
+        });
+
+        // Submit button functionality
+        submitBtn.addEventListener('click', () => {
+                const inputValue = parseInt(numberInput.value);
+                if (inputValue >= 1 && inputValue <= max) {
+                    popupContainer.style.display = 'none';
+                    overlay.style.display = 'none';
+                    // alert(`You entered: ${inputValue}`);
+                    this.setOrder(d, inputValue);
+                } else {
+                    alert('Please enter a valid number between 1 and ' + max + ".");
+                }
+            });
+    }
+
+    //Update node's order: move it to the new position, adjust order of nodes between the old and the new positions
+    setOrder(d, order){
+        if (!d.parent || !d.children || (d.data?.order === order)){
+            //No changes needed
+            return;
+        }
+        if (d.data.order + 1 === order){
+            this.moveDown(d);
+        } else {
+            if (d.data.order - 1 === order) {
+                this.moveUp(d);
+            } else {
+                let oldOrder = d.data.order;
+                d.data.order = order;
+                d3.select("#node_" + d.id).remove();
+                let curr = d;
+                if (oldOrder < order) {
+                    //Move down
+                    while (curr.children?.length > 1 && curr.children[1].data?.order <= order) {
+                        curr = curr.children[1];
+                        //Decrease order of all nodes between oldOrder and (new) order
+                        curr.data.order -= 1;
+                        d3.select("#node_" + curr.id).remove();
+                    }
+                    //Remove node from old position
+                    let n = d.parent.children.length;
+                    d.parent.children[n - 1] = d.children[1];
+                    d.children[1].parent = d.parent;
+
+                    //Attach node to new position
+                    if (curr.children?.length > 1) {
+                        //In the middle
+                        let next = curr.children[1];
+                        curr.children[1] = d;
+                        d.children[1] = next;
+                    } else {
+                        //At the end
+                        curr.children.push(d);
+                        d.children.pop();
+                    }
+                } else {
+                    //Move up
+                    while (curr.parent?.data?.connector && curr.parent?.data?.order >= order) {
+                        curr = curr.parent;
+                        curr.data.order += 1;
+                        //Increase order of all nodes between oldOrder and (new) order
+                        d3.select("#node_" + curr.id).remove();
+                    }
+                    curr = curr.parent;
+                    let m = curr.children.length - 1;
+                    let first = curr.children[m];
+                    if (first.id !== d.id) {
+                        if (d.children.length > 1) {
+                            let n = d.parent.children.length;
+                            d.parent.children[n - 1] = d.children[1];
+                            d.children[1].parent = d.parent;
+                        } else {
+                            d.parent.children.pop();
+                        }
+                        curr.children[m] = d;
+                        if (d.children.length > 1) {
+                            d.children[1] = first;
+                        } else {
+                            d.children.push(first);
+                        }
+                        first.parent = d;
+                    }
+                    d.parent = curr;
+                }
+                this.saveAction(ActionType.SET_ORDER, d.data, oldOrder);
+                this.update(this.root);
+            }
+        }
+    }
+
+    //Add order to a node and move it to the correct position
     addOrder(d){
         this.hideMenu();
         if (d.parent) {
@@ -284,6 +410,7 @@ class Tree {
         }
     }
 
+    //Remove order from a node and move it to the end
     removeOrder(d){
         this.hideMenu();
         if (d.data?.order) {
@@ -314,7 +441,7 @@ class Tree {
         }
     }
 
-    // Decrease order of updated node ancestors
+    //Decrease order of updated node ancestors
     decreaseTailOrder(d){
         let curr = d;
         while (curr?.data.order > 1){
@@ -324,16 +451,19 @@ class Tree {
         }
     }
 
+    //Expand the tree starting from this leaf node
     include(d){
        this.hideMenu();
        toggleIncludeOption(d.data);
     }
 
+    //Truncate the tree at this leaf node
     exclude(d){
         this.hideMenu();
         toggleIncludeOption(d.data);
     }
 
+    //Include a node to the JSON output
     enable(d){
         this.hideMenu();
         d.data.disabled = 0;
@@ -342,6 +472,7 @@ class Tree {
         this.saveAction(ActionType.ENABLE, d.data);
     }
 
+    //Exclude a node from the JSON output
     disable(d){
         this.hideMenu();
         d.data.disabled = 1;
@@ -416,6 +547,7 @@ class Tree {
 
             let btnRemove = document.getElementById("btnRemove");
             let btnMoveUp = document.getElementById("btnMoveUp");
+            let btnSetOrder = document.getElementById("btnSetOrder");
             let btnMoveDown = document.getElementById("btnMoveDown");
             let btnAddOrder = document.getElementById("btnAddOrder");
             let btnRemoveOrder = document.getElementById("btnRemoveOrder");
@@ -427,6 +559,7 @@ class Tree {
             btnRemove.style.display = "none";
             btnMoveUp.style.display = "none";
             btnMoveDown.style.display = "none";
+            btnSetOrder.style.display = "none";
             btnAddOrder.style.display = "none";
             btnRemoveOrder.style.display = "none";
             btnInclude.style.display = "none";
@@ -462,6 +595,7 @@ class Tree {
                 btnMoveDown.onclick = e => this.moveDown(d);
                 btnAddOrder.onclick = e => this.addOrder(d);
                 btnRemoveOrder.onclick = e => this.removeOrder(d);
+                btnSetOrder.onclick = e => this.enterOrder(d);
 
                 btnRemove.style.display = "block";
                 // Can move up if not the first
@@ -477,6 +611,7 @@ class Tree {
                     btnAddOrder.style.display = "block";
                 } else {
                     btnRemoveOrder.style.display = "block";
+                    btnSetOrder.style.display = "block";
                 }
 
                 let groupList = Object.values(this.groups);

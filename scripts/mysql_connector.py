@@ -7,6 +7,7 @@ class ActionType(Enum):
     REMOVE = "Remove"
     MOVE_UP = "MoveUp"
     MOVE_DOWN = "MoveDown"
+    SET_ORDER = "SetOrder"
     MOVE_TO_GROUP = "MoveToGroup"
     ADD_TO_GROUP = "AddToGroup"
     ADD_ORDER = "AddOrder"
@@ -115,6 +116,8 @@ class MySQLConnector:
                     self.remove_edge(params)
                 elif action_type == ActionType.MOVE_UP or action_type == ActionType.MOVE_DOWN:
                     self.move_up_or_down(params)
+                elif action_type == ActionType.SET_ORDER:
+                    self.update_order(params)
                 elif action_type == ActionType.ADD_ORDER:
                     self.add_order(params)
                 elif action_type == ActionType.REMOVE_ORDER:
@@ -150,21 +153,6 @@ class MySQLConnector:
         values = (lyph_template_id, fma_id)
         cursor.execute(query, values)
         print("UPDATE, affected rows: ", cursor.rowcount)
-
-    # Delete duplicates from master_vascular
-    # q = """select * from master_vascular as x where x.ID in (
-    #     select SUBSTRING_INDEX(ids, ',', -1) AS redundant from (
-    #     select v.vl1originalID, v.vl2originalID, GROUP_CONCAT(id) as ids, GROUP_CONCAT(sequence) as seqs from master_vascular as v
-    #     group by v.vl1originalID, v.vl2originalID
-    #     having count(*) > 1) as v1)
-    #     order by x.vl1originalID, x.vl2originalID"""
-    # Clean vessels list
-    # """select * from master_vascular_vessels as y where y.node_id not in (
-    # select distinct * from (
-    # select v.main as node from master_vascular as v
-    # union
-    # select v.branch as node from master_vascular as v) as x) order by y.fma_id"""
-    # select x.name, count(*) from master_vascular_vessels as x group by x.name having count(*) > 1
 
     def query_versions(self):
         cursor = self.driver.cursor()
@@ -229,9 +217,22 @@ class MySQLConnector:
         if sequence > 0:
             self.decrease_order(main, sequence)
 
-    # Update edge order in master_vascular after removing one, TEST needed
-    def decrease_order(self, main, start):
+    # Update edge order in master_vascular after removing one
+    def decrease_order(self, main, start, end=None):
         query = """UPDATE master_vascular SET sequence = sequence - 1 WHERE MAIN={0} and sequence>{1}""".format(main, start)
+        if end:
+            query += """ and sequence<{0}""".format(end)
+        print(query)
+        cursor = self.driver.cursor()
+        cursor.execute(query)
+        print("ADJUST ORDER, affected rows: ", cursor.rowcount)
+
+    # Update edge order in master_vascular after adding one
+    def increase_order(self, main, start, end=None):
+        query = """UPDATE master_vascular SET sequence = sequence + 1 WHERE MAIN={0} and sequence<{1}""".format(main, start)
+        if end:
+            query += """ and sequence>{0}""".format(end)
+        print(query)
         cursor = self.driver.cursor()
         cursor.execute(query)
         print("ADJUST ORDER, affected rows: ", cursor.rowcount)
@@ -322,3 +323,33 @@ class MySQLConnector:
         main = params[0]["source"].split('_')[0]
         old_order = params[1]
         self.decrease_order(main, old_order)
+
+    def update_order(self, params):
+        branch_id = params[0]["branch"]
+        order = params[0]["order"]
+        # Adjust follow up orders
+        main = params[0]["source"].split('_')[0]
+        old_order = params[1]
+        if old_order < order:
+            self.decrease_order(main, old_order, order+1)
+        else:
+            self.increase_order(main, old_order, order-1)
+        query = """UPDATE master_vascular SET sequence={0} WHERE ID={1}""".format(order, branch_id)
+        cursor = self.driver.cursor()
+        cursor.execute(query)
+        print("SET-ORDER, affected rows: ", cursor.rowcount)
+
+    # Delete duplicates from master_vascular
+    # q = """select * from master_vascular as x where x.ID in (
+    #     select SUBSTRING_INDEX(ids, ',', -1) AS redundant from (
+    #     select v.vl1originalID, v.vl2originalID, GROUP_CONCAT(id) as ids, GROUP_CONCAT(sequence) as seqs from master_vascular as v
+    #     group by v.vl1originalID, v.vl2originalID
+    #     having count(*) > 1) as v1)
+    #     order by x.vl1originalID, x.vl2originalID"""
+    # Clean vessels list
+    # """select * from master_vascular_vessels as y where y.node_id not in (
+    # select distinct * from (
+    # select v.main as node from master_vascular as v
+    # union
+    # select v.branch as node from master_vascular as v) as x) order by y.fma_id"""
+    # select x.name, count(*) from master_vascular_vessels as x group by x.name having count(*) > 1
