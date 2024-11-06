@@ -8,7 +8,8 @@ const ActionType = {
     ADD_ORDER: "AddOrder",
     REMOVE_ORDER: "RemoveOrder",
     DISABLE: "Disable",
-    ENABLE: "Enable"
+    ENABLE: "Enable",
+    CREATE: "Create"
 };
 
 class Tree {

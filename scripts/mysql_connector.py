@@ -57,13 +57,36 @@ class MySQLConnector:
     # Get all vessels
     def query_vascular_nodes_map(self):
         cursor = self.driver.cursor()
-        query = """SELECT node_id, fma_id, name, vessel_type FROM master_vascular_vessels"""
+        query = """SELECT node_id, fma_id, name, vessel_type, external FROM master_vascular_vessels"""
         cursor.execute(query)
         nodes = {}
         for item in cursor:
-            obj = {"nodeID": str(item[0]), "fmaID": str(item[1]), "name": item[2], "vesselType": str(item[3])}
+            obj = {"nodeID": str(item[0]), "fmaID": str(item[1]), "name": item[2],
+                   "vesselType": str(item[3]), "external": item[3]}
             nodes[obj["nodeID"]] = obj
         return nodes
+
+    # Create a new vessel
+    def create_vessel(self, external_id, name, vessel_type):
+        cursor = self.driver.cursor()
+        query = """SELECT * FROM master_vascular_vessels where fma_id = %s"""
+        cursor.execute(query, (external_id,))
+        row = cursor.fetchone()
+        if row is not None:
+            return None
+        query = """SELECT max(node_id) as max_id FROM master_vascular_vessels"""
+        cursor.execute(query)
+        next_id = None
+        for value in cursor:
+            next_id = value[0] + 1
+        if not next_id:
+            raise Exception("Failed to retrieve an ID for a new vessel!")
+        query_add = """INSERT INTO master_vascular_vessels 
+                            (node_id, fma_id, name, vessel_type, external) VALUES (%s, %s, %s, %s, %s)"""
+        values = (next_id, external_id, name, vessel_type, 1)
+        cursor.execute(query_add, values)
+        self.driver.commit()
+        return next_id
 
     # Get all edges to construct the vascular tree
     def query_vascular_edges(self):
@@ -144,7 +167,6 @@ class MySQLConnector:
                 .format(','.join(exclude))
             cursor.execute(query2)
         for key in update:
-            print(key, update[key])
             self.update_template(key, update[key])
 
     def update_template(self, fma_id, lyph_template_id):
@@ -222,7 +244,6 @@ class MySQLConnector:
         query = """UPDATE master_vascular SET sequence = sequence - 1 WHERE MAIN={0} and sequence>{1}""".format(main, start)
         if end:
             query += """ and sequence<{0}""".format(end)
-        print(query)
         cursor = self.driver.cursor()
         cursor.execute(query)
         print("ADJUST ORDER, affected rows: ", cursor.rowcount)
@@ -232,7 +253,6 @@ class MySQLConnector:
         query = """UPDATE master_vascular SET sequence = sequence + 1 WHERE MAIN={0} and sequence<{1}""".format(main, start)
         if end:
             query += """ and sequence>{0}""".format(end)
-        print(query)
         cursor = self.driver.cursor()
         cursor.execute(query)
         print("ADJUST ORDER, affected rows: ", cursor.rowcount)
@@ -244,8 +264,7 @@ class MySQLConnector:
         branch_id2 = params[1]["branch"]
         sequence2 = params[1]["order"]
         if sequence1 < 0 or sequence2 < 0:
-            print("Something wrong with sequences: ", sequence1, sequence2)
-            return
+            raise Exception("Something wrong with sequences: " + sequence1 + ", " + sequence2)
         query1 = """UPDATE master_vascular SET sequence={0} WHERE ID={1}""".format(sequence1, branch_id1)
         cursor = self.driver.cursor()
         cursor.execute(query1)
@@ -278,19 +297,18 @@ class MySQLConnector:
         cursor = self.driver.cursor()
         query = """SELECT max(id) as max_id FROM master_vascular"""
         cursor.execute(query)
-        max_id = None
+        next_id = None
         for value in cursor:
-            max_id = value[0]
-        if not max_id:
-            print("Failed to retrieve an ID for a new record!")
-            return
+            next_id = value[0] + 1
+        if not next_id:
+            raise Exception("Failed to retrieve an ID for a new record!")
         cursor = self.driver.cursor()
         query = """INSERT INTO master_vascular (
             ID, MAIN, vl1originalID, vl1originalvesselname, BRANCH, vl2originalID, vl2originalvesselname, vessel_type, sequence, disabled) 
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"""
-        values = (max_id + 1, source["nodeID"], source["fmaID"], source["name"], target["nodeID"], target["fmaID"], target["name"], target["vesselType"], order, 0)
+        values = (next_id, source["nodeID"], source["fmaID"], source["name"], target["nodeID"], target["fmaID"], target["name"], target["vesselType"], order, 0)
         cursor.execute(query, values)
-        print("ADD-TO-GROUP: ", max_id + 1)
+        print("ADD-TO-GROUP: ", next_id)
 
     # Set disable flag
     def disable_enable(self, params):

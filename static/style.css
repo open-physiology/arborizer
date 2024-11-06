@@ -166,14 +166,14 @@ select option {
 
 .context-menu {
     position: absolute;
-    text-align: center;
+    text-align: left;
     background: lightgray;
     border: 1px solid black;
 }
 
 .context-menu ul {
-    padding: 0px;
-    margin: 0px;
+    padding: 0;
+    margin: 0;
     min-width: 100px;
     list-style: none;
 }
@@ -214,7 +214,7 @@ select option {
             background-color: #fff;
             padding: 20px;
             border-radius: 8px;
-            box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
             z-index: 1000;
         }
 

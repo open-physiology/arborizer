@@ -12,8 +12,10 @@
 
 <div id="vesselList" class="w3-left data_panel" style="display: none">
     <label for="vesselInput"></label>
-    <input type="text" style="width:100%"
+    <input type="text" style="width:95%"
            id="vesselInput" class="search" placeholder="🔍" name="vesselInput" onkeyup="filterVesselOptions()"/>
+    <button id="btnCreate" class="w3-bar-item w3-hover-light-grey" disabled
+            title="Create vessel" onclick=createVessel()>+</button>
     <div class="data_part">
         <ul id="ulVessels">
             {% for node in vessels %}
@@ -92,14 +94,46 @@
     </div>
 </div>
 
-<script>
-    let vesselPanel = document.getElementById("vesselList");
-    let includedPanel = document.getElementById("includedList");
+<div id="divCreate" style="display: none;" class="w3-modal">
+    <div class="w3-modal-content">
+        <header class="w3-container w3-teal">
+            <button class="cross" onclick="document.getElementById('divCreate').style.display='none'">&cross;</button>
+            Create a new vessel
+        </header>
+        <div class="w3-container w3-padding-24">
+            <form action="/create" method="POST">
+                <label for="externalID">External ID:</label>
+                <input type="number" min="1" name="externalID" style="width: 120px; margin-right: 4px;" required>
 
-    let btnShow = document.getElementById("btnShow");
-    let btnHide = document.getElementById("btnHide");
-    let btnShowInc = document.getElementById("btnShowInc");
-    let btnHideInc = document.getElementById("btnHideInc");
+                <label for="bloodType">Vessel type:</label>
+                <select id="bloodType" name="bloodType" style="padding: 4px; width: 90px;">
+                    <option value="arterial">arterial</option>
+                    <option value="venous">venous</option>
+                </select>
+
+                <div class="w3-padding-16">
+                    <label for="createName" class="w3-margin-top">Name:</label>
+                    <input type="text" id="createName" name="createName" style="width: 600px;" required>
+                </div>
+
+                <input type="submit" value="save" class="w3-margin-left">
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    const vesselPanel = document.getElementById("vesselList");
+    const includedPanel = document.getElementById("includedList");
+
+    const btnShow = document.getElementById("btnShow");
+    const btnHide = document.getElementById("btnHide");
+    const btnShowInc = document.getElementById("btnShowInc");
+    const btnHideInc = document.getElementById("btnHideInc");
+
+    const btnCreate = document.getElementById("btnCreate");
+    const divCreate = document.getElementById("divCreate");
+    const createName = document.getElementById("createName");
 
     function openNav() {
         vesselPanel.style.display = "block";
@@ -175,18 +209,25 @@
         filter = input.value.toUpperCase();
         ul = document.getElementById("ulVessels");
         li = ul.getElementsByTagName("li");
+        let count = 0;
         for (i = 0; i < li.length; i++) {
             txtValue = li[i].textContent;
             if (txtValue.toUpperCase().indexOf(filter) > -1) {
                 li[i].style.display = "";
+                count += 1;
             } else {
                 li[i].style.display = "none";
             }
         }
+        if (count === 0){
+            btnCreate.disabled = false;
+        } else {
+            btnCreate.disabled = true;
+        }
     }
 
     function filterTemplateOptions() {
-        let input, filter, ul, li, btn, i, txtValue;
+        let input, filter, ul, li, i, txtValue;
         input = document.getElementById("templateInput");
         filter = input.value.toUpperCase();
         ul = document.getElementById("ulTemplates");
@@ -230,4 +271,15 @@
             }
         }
     }
+
+    function createVessel() {
+        if (!authorized){
+            window.alert("You are not authorized to perform this action! Please, login!");
+        } else {
+            divCreate.style.display = "block";
+            const input = document.getElementById("vesselInput");
+            createName.value = input.value.trim();
+        }
+    }
+
 </script>

@@ -42,23 +42,23 @@
     {% include 'tree.html' %}
 
     <script>
-        let contextMenu = document.getElementById("listContextMenu");
-        let tree = document.getElementById("tree");
+        const contextMenu = document.getElementById("listContextMenu");
+        const tree = document.getElementById("tree");
 
-        let btnLogin = document.getElementById("btnLogin");
-        let btnLogout = document.getElementById("btnLogout");
+        const btnLogin = document.getElementById("btnLogin");
+        const btnLogout = document.getElementById("btnLogout");
 
-        let isChange = document.getElementById("isChange");
-        let btnApply = document.getElementById("btnApply");
-        let btnBackup = document.getElementById("btnBackup");
-        let btnRestore = document.getElementById("btnRestore");
+        const isChange = document.getElementById("isChange");
+        const btnApply = document.getElementById("btnApply");
+        const btnBackup = document.getElementById("btnBackup");
+        const btnRestore = document.getElementById("btnRestore");
 
-        let divLogin = document.getElementById("divLogin");
-        let divAccess = document.getElementById("divAccess");
-        let divBackup = document.getElementById("divBackup");
-        let divRestore = document.getElementById("divRestore");
+        const divLogin = document.getElementById("divLogin");
+        const divAccess = document.getElementById("divAccess");
+        const divBackup = document.getElementById("divBackup");
+        const divRestore = document.getElementById("divRestore");
 
-        let formSave = document.getElementById("formSave");
+        const formSave = document.getElementById("formSave");
 
         document.addEventListener("click", function(){
             if (contextMenu.style.display === "block"){

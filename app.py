@@ -170,7 +170,8 @@ def create_tree():
             g.root.add_child(loose_roots[key])
 
 
-def update_tree():
+@app.route('/')
+def index():
     if 'mysql_db' not in g or not g.mysql_db.is_connected():
         g.mysql_db = MySQLConnector(db_name, db_user, db_pwd, db_server, db_port)
     create_tree()
@@ -178,13 +179,9 @@ def update_tree():
     versions = g.mysql_db.query_versions()
     authorized = session.get('logged_in')
     return render_template('index.html', data=json.dumps(g.root.as_dict()), groups=g.groups,
-                           vessels=g.vessels, includedOptions=g.included_options, authorized=authorized, versions=versions,
+                           vessels=g.vessels, includedOptions=g.included_options,
+                           authorized=authorized, versions=versions,
                            lyphTemplates=lyph_templates)
-
-
-@app.route('/')
-def index():
-    return update_tree()
 
 
 @app.route('/login', methods=["GET", "POST"])
@@ -225,6 +222,30 @@ def edit():
     return redirect(url_for("index"))
 
 
+@app.route('/create', methods=['GET', 'POST'])
+def create():
+    if session.get('logged_in'):
+        try:
+            if 'mysql_db' not in g or not g.mysql_db.is_connected():
+                g.mysql_db = MySQLConnector(db_name, db_user, db_pwd, db_server, db_port)
+            external = request.form['externalID'].strip()
+            name = request.form['createName'].strip()
+            vessel_type = request.form['bloodType']
+            if len(external) == 0 or len(name) == 0 or not vessel_type:
+                flash("Cannot add the vessel: not all parameters are specified", 'error')
+            vessel_id = g.mysql_db.create_vessel(external, name, vessel_type)
+            if vessel_id is None:
+                flash("Failed to add the vessel: a vessel with such external ID ({0}) already exists!".format(external), 'error')
+            else:
+                flash("Vessel created: " + str(vessel_id), 'success')
+        except Exception as e:
+            flash("Failed to add the vessel!", 'error')
+            print(e)
+    else:
+        flash("You are not authorized to alter the database! Please, login!", 'error')
+    return redirect(url_for("index"))
+
+
 @app.route('/restore', methods=['GET', 'POST'])
 def restore():
     if session.get('logged_in'):
@@ -257,7 +278,7 @@ def backup():
             timestamp = g.mysql_db.create_backup(user, comment)
             flash("Created backup with timestamp: " + timestamp, 'success')
         except Exception as e:
-            flash("Backup failed: " + e, 'error')
+            flash("Backup failed!", 'error')
     else:
         flash("You are not authorized to alter the database! Please, login!", 'error')
     return redirect(url_for("index"))
