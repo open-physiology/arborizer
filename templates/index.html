@@ -159,6 +159,11 @@
             contextMenu.style.top = e.pageY+'px';
             let groupList  = Object.values(groups);
             if (groupList.length > 0){
+                groupList = groupList.sort(function(a,b){
+                        if (a.name > b.name) return 1;
+                        if (a.name < b.name) return -1;
+                        return 0;
+                    });
                 let ul = document.getElementById('ulAdd');
                 ul.innerHTML = '';
                 function renderGroupMenu(group) {

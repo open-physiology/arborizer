@@ -166,7 +166,6 @@ select option {
 
 .context-menu {
     position: absolute;
-    text-align: left;
     background: lightgray;
     border: 1px solid black;
 }
@@ -197,6 +196,10 @@ select option {
     padding-bottom: 2px;
     padding-top: 2px;
     border: 1px solid #ccc;
+}
+
+.group-menu button{
+    text-align: left;
 }
 
 .context-menu button:hover {

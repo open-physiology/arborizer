@@ -1,5 +1,5 @@
 <div id="listContextMenu" class="context-menu" style="display:none">
-    <ul id="ulAdd">
+    <ul id="ulAdd" class="group-menu">
         {% for group in groups %}
             <li>
                 <button>
@@ -103,7 +103,7 @@
         <div class="w3-container w3-padding-24">
             <form action="/create" method="POST">
                 <label for="externalID">External ID:</label>
-                <input type="number" min="1" name="externalID" style="width: 120px; margin-right: 4px;" required>
+                <input type="text" maxlength=12 name="externalID" style="width: 120px; margin-right: 4px;" required>
 
                 <label for="bloodType">Vessel type:</label>
                 <select id="bloodType" name="bloodType" style="padding: 4px; width: 90px;">

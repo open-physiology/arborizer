@@ -15,8 +15,8 @@ const ActionType = {
 class Tree {
     constructor(root, groups, actions) {
         this.root = root;
-        this.groups = groups;
-        this.actions = actions;
+        this.groups = groups||[];
+        this.actions = actions||[];
         this.createTreeDiagram();
     }
 
@@ -156,99 +156,102 @@ class Tree {
     moveToGroup(d, group) {
         this.hideMenu();
         let groupRoot = this.findNode(group.id.substring(2));
+        let curr = groupRoot;
         if (groupRoot?.children && d.parent) {
-            let curr = groupRoot.children[0];
+            curr = groupRoot.children[0];
             while (curr.children?.length > 1 && curr.children[1].data.group === group.id) {
                 curr = curr.children[1];
             }
-            let n = d.parent.children.length;
-            if (d.children?.length > 1) {
-                d.parent.children[n-1] = d.children[1];
-            } else {
-                d.parent.children.pop();
-            }
-            let oldOrder = d.data.order;
-            if (d.children?.length > 1) {
-                let child = d.children.pop();
-                child.parent = d.parent;
-                if (oldOrder){
-                    this.decreaseTailOrder(child);
-                }
-            }
-            d.parent = curr;
-            d.disabled = true;
-            d.data.group = group.id;
-            d.data.order = 0;
-            if (curr.data.order) {
-                d.data.order = curr.data.order + 1;
-            }
-            curr.children = curr.children || [];
-            curr.children.push(d);
-
-            d3.select("#node_"+d.id).remove();
-            if (d.children?.length > 1){
-                d3.select("#node_"+d.children[1].id).remove();
-            }
-            let source = {"nodeID": groupRoot.id, "name": groupRoot.name, "fmaID": groupRoot.data.fmaID}
-
-            this.saveAction(ActionType.MOVE_TO_GROUP, d.data, source, oldOrder);
-            this.update(this.root);
         }
+        let n = d.parent.children.length;
+        if (d.children?.length > 1) {
+            d.parent.children[n-1] = d.children[1];
+        } else {
+            d.parent.children.pop();
+        }
+        let oldOrder = d.data.order;
+        if (d.children?.length > 1) {
+            let child = d.children.pop();
+            child.parent = d.parent;
+            if (oldOrder){
+                this.decreaseTailOrder(child);
+            }
+        }
+        d.parent = curr;
+        d.disabled = true;
+        d.data.group = group.id;
+        d.data.order = 0;
+        if (curr.data.order) {
+            d.data.order = curr.data.order + 1;
+        }
+        curr.children = curr.children || [];
+        curr.children.push(d);
+
+        d3.select("#node_"+d.id).remove();
+        if (d.children?.length > 1){
+            d3.select("#node_"+d.children[1].id).remove();
+        }
+        let source = {"nodeID": groupRoot.id, "name": groupRoot.name, "fmaID": groupRoot.data.fmaID}
+
+        this.saveAction(ActionType.MOVE_TO_GROUP, d.data, source, oldOrder);
+        this.update(this.root);
     }
 
     //Add node to a group
     addToGroup(target, group){
         let groupRoot = this.findNode(group.id.substring(2));
+        let curr = groupRoot;
         if (groupRoot?.children) {
-            let curr = groupRoot.children[0];
+            curr = groupRoot.children[0];
             while (curr.children?.length > 1 && curr.children[1].data.group === group.id) {
                 curr = curr.children[1];
             }
-
-            let s_id = curr.id;
-            let t_id = target.nodeID;
-            let m_id = s_id + "_" + t_id;
-            let color = curr.data.color;
-
-            let lnk1_id = "lnk-" + s_id + "_" + m_id
-            let order = curr.data.order? curr.data.order + 1: 0;
-            let lnk1_name = curr.name + " to " + target.name
-            let lnk1 = {
-                "id": lnk1_id, "name": lnk1_name, "source": s_id, "target": m_id,
-                "fmaID": curr.data.fmaID, "color": color, "group": group.id, "connector": 1, "order": order
-            }
-
-            let lyph_id = "lyph-" + target.fmaID;
-            let lnk2_id = "lnk-" + m_id + "_" + t_id
-            let lnk2 = {
-                "id": lnk2_id, "name": target.name, "conveyingLyph": lyph_id, "source": m_id, "target": t_id,
-                "fmaID": target.fmaID, "color": color, "group": group.id
-            }
-
-            let d = {
-                "id": lnk1.target,
-                "name": lnk1.name,
-                "parent": curr,
-                "children": [],
-                "data": lnk1
-            }
-            let d2 = {
-                "id": lnk2.target,
-                "name": lnk2.name,
-                "parent": d,
-                "children": [],
-                "data": lnk2
-            }
-            d.children.push(d2);
-            curr.children = curr.children || [];
-            curr.children.push(d);
-
-            let source = {"nodeID": groupRoot.id, "name": groupRoot.name, "fmaID": groupRoot.data.fmaID}
-
-            this.saveAction(ActionType.ADD_TO_GROUP, source, target, order);
-            this.update(this.root);
-            return true;
         }
+
+        let s_id = curr.id;
+        let t_id = target.nodeID;
+        let m_id = s_id + "_" + t_id;
+        let color = curr.data.color;
+
+        let lnk1_id = "lnk-" + s_id + "_" + m_id
+        let order = curr.data.order ? curr.data.order + 1 : 0;
+        let lnk1_name = curr.name + " to " + target.name
+        let lnk1 = {
+            "id": lnk1_id, "name": lnk1_name, "source": s_id, "target": m_id,
+            "fmaID": curr.data.fmaID, "color": color, "group": group.id, "connector": 1, "order": order
+        }
+
+        let lyph_id = "lyph-" + target.fmaID;
+        let lnk2_id = "lnk-" + m_id + "_" + t_id
+        let lnk2 = {
+            "id": lnk2_id, "name": target.name, "conveyingLyph": lyph_id, "source": m_id, "target": t_id,
+            "fmaID": target.fmaID, "color": color, "group": group.id
+        }
+
+        let d = {
+            "id": lnk1.target,
+            "name": lnk1.name,
+            "parent": curr,
+            "children": [],
+            "data": lnk1
+        }
+        let d2 = {
+            "id": lnk2.target,
+            "name": lnk2.name,
+            "parent": d,
+            "children": [],
+            "data": lnk2
+        }
+        d.children.push(d2);
+        curr.children = curr.children || [];
+        curr.children.push(d);
+
+        let source = {"nodeID": groupRoot.id, "name": groupRoot.name, "fmaID": groupRoot.data.fmaID}
+
+        this.saveAction(ActionType.ADD_TO_GROUP, source, target, order);
+        this.update(this.root);
+        return true;
+
     }
 
     //Open a from to enter a new node order
@@ -464,6 +467,12 @@ class Tree {
         toggleIncludeOption(d.data);
     }
 
+    setAsRoot(d){
+        this.hideMenu();
+        let g_id = "g_" + d.id;
+        this.groups[g_id] = ({"id": g_id, "name": d.name});
+    }
+
     //Include a node to the JSON output
     enable(d){
         this.hideMenu();
@@ -509,6 +518,22 @@ class Tree {
             d.y = d.depth * 30;
         });
 
+        // function isShort(d){
+        //     if (!d) return false;
+        //     return d.data?.disabled || (d.children?.length > 0 && d.children[0].data?.disabled);
+        // }
+        //
+        // nodes.forEach(function (d) {
+        //     if (isShort(d) && isShort(d.parent)){
+        //         d.y = d.parent? d.parent.y + 10: d.depth * 10;
+        //         if (d.parent?.children.length > 0){
+        //             d.x = d.parent.children[0].id === d.id? d.parent.x - 10: d.parent.x + 10
+        //         }
+        //     } else
+        //         d.y = d.parent? d.parent.y + 30: d.depth * 30;
+        //     }
+        // );
+
         // Update the nodes…
         let node = this.treeGroup.selectAll("g.node")
             .data(nodes, function (d, i) {
@@ -530,13 +555,12 @@ class Tree {
         nodeEnter.append("circle")
             .attr("r", 1e-6)
             .on("mouseover", d => {
-                tooltip.text((d.data?.fmaID ? "FMA: " + d.data.fmaID + ": " : "") + d.name);
+                tooltip.text((d.data?.fmaID ? d.data.fmaID + ": " : "") + d.name);
                 return tooltip.style("visibility", "visible");
             })
             .on("mousemove", d => tooltip.style("top", (d3.event.pageY - 10) + "px").style("left", (d3.event.pageX + 10) + "px"))
             .on("mouseout", d => tooltip.style("visibility", "hidden"))
-            .on('contextmenu', d => onRightClick(d))
-            .on('click', d => console.log(d));
+            .on('contextmenu', d => onRightClick(d));
 
         const onRightClick = d => {
             d3.event.preventDefault();
@@ -546,16 +570,17 @@ class Tree {
             contextMenu.style.left = d3.event.clientX + 'px';
             contextMenu.style.top = d3.event.clientY + 'px';
 
-            let btnRemove = document.getElementById("btnRemove");
-            let btnMoveUp = document.getElementById("btnMoveUp");
-            let btnSetOrder = document.getElementById("btnSetOrder");
-            let btnMoveDown = document.getElementById("btnMoveDown");
-            let btnAddOrder = document.getElementById("btnAddOrder");
-            let btnRemoveOrder = document.getElementById("btnRemoveOrder");
-            let btnInclude = document.getElementById("btnInclude");
-            let btnExclude = document.getElementById("btnExclude");
-            let btnDisable = document.getElementById("btnDisable");
-            let btnEnable = document.getElementById("btnEnable");
+            const btnRemove = document.getElementById("btnRemove");
+            const btnMoveUp = document.getElementById("btnMoveUp");
+            const btnSetOrder = document.getElementById("btnSetOrder");
+            const btnMoveDown = document.getElementById("btnMoveDown");
+            const btnAddOrder = document.getElementById("btnAddOrder");
+            const btnRemoveOrder = document.getElementById("btnRemoveOrder");
+            const btnInclude = document.getElementById("btnInclude");
+            const btnExclude = document.getElementById("btnExclude");
+            const btnDisable = document.getElementById("btnDisable");
+            const btnEnable = document.getElementById("btnEnable");
+            const btnAsRoot = document.getElementById("btnAsRoot");
 
             btnRemove.style.display = "none";
             btnMoveUp.style.display = "none";
@@ -567,11 +592,18 @@ class Tree {
             btnExclude.style.display = "none";
             btnDisable.style.display = "none";
             btnEnable.style.display = "none";
+            btnAsRoot.style.display = "none";
 
             if (d.data && !d.data.connector){
                 if (d.data.included){
                     btnExclude.style.display = "block";
                     btnExclude.onclick = e => this.exclude(d);
+                    if ((d.children||[]).length === 0){
+                        if (! (("g_" + d.id) in this.groups)) {
+                            btnAsRoot.style.display = "block";
+                            btnAsRoot.onclick = e => this.setAsRoot(d);
+                        }
+                    }
                 } else {
                     btnInclude.style.display = "block";
                     btnInclude.onclick = e => this.include(d);
@@ -617,6 +649,12 @@ class Tree {
 
                 let groupList = Object.values(this.groups);
                 if (groupList.length > 0 && d.data.order > 1) {
+                    groupList = groupList.sort(function(a,b){
+                        if (a.name > b.name) return 1;
+                        if (a.name < b.name) return -1;
+                        return 0;
+                    });
+
                     let ul = document.getElementById('ulChange');
                     ul.innerHTML = '';
 

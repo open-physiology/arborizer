@@ -81,9 +81,15 @@ class MySQLConnector:
             next_id = value[0] + 1
         if not next_id:
             raise Exception("Failed to retrieve an ID for a new vessel!")
+        # Create vessel
         query_add = """INSERT INTO master_vascular_vessels 
                             (node_id, fma_id, name, vessel_type, external) VALUES (%s, %s, %s, %s, %s)"""
         values = (next_id, external_id, name, vessel_type, 1)
+        cursor.execute(query_add, values)
+        # Create an  include record
+        query_add = """INSERT INTO master_vascular_lyph_templates 
+                            (VESSEL_FMA_ID, node_colour) VALUES (%s, %s)"""
+        values = (external_id, 'orange')
         cursor.execute(query_add, values)
         self.driver.commit()
         return next_id
@@ -160,18 +166,18 @@ class MySQLConnector:
         cursor = self.driver.cursor()
         if len(include) > 0:
             query1 = """update master_vascular_lyph_templates as v set v.include=1 where v.VESSEL_FMA_ID in ({0})""" \
-                .format(','.join(include))
+                .format(','.join(f'"{w}"' for w in include))
             cursor.execute(query1)
         if len(exclude) > 0:
             query2 = """update master_vascular_lyph_templates as v set v.include=NULL where v.VESSEL_FMA_ID in ({0})""" \
-                .format(','.join(exclude))
+                .format(','.join(f'"{w}"' for w in exclude))
             cursor.execute(query2)
         for key in update:
             self.update_template(key, update[key])
 
     def update_template(self, fma_id, lyph_template_id):
         cursor = self.driver.cursor()
-        query = """update master_vascular_lyph_templates as v set v.lyph_template_ID=%s where v.VESSEL_FMA_ID=%s"""
+        query = """update master_vascular_lyph_templates as v set v.lyph_template_ID=%s where v.VESSEL_FMA_ID='%s'"""
         values = (lyph_template_id, fma_id)
         cursor.execute(query, values)
         print("UPDATE, affected rows: ", cursor.rowcount)
