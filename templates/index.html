@@ -58,8 +58,6 @@
         const divBackup = document.getElementById("divBackup");
         const divRestore = document.getElementById("divRestore");
 
-        const formSave = document.getElementById("formSave");
-
         document.addEventListener("click", function(){
             if (contextMenu.style.display === "block"){
                 hideListMenu();
@@ -135,8 +133,18 @@
         async function logout(){
             if (window.confirm("Are you sure you want to log out?")) {
                 await fetch("/logout");
-                authorized = false
-                setAuthorization()
+                authorized = false;
+                setAuthorization();
+            }
+        }
+
+        function deleteVessel(node){
+            hideListMenu();
+            if (window.confirm("Are you sure you want to permanently delete this vessel?")) {
+                let params = document.querySelectorAll('#formDelete input[type="hidden"]')
+                params[0].value = node.fmaID;
+                const formDelete = document.getElementById("formDelete");
+                formDelete.submit();
             }
         }
 
@@ -157,6 +165,14 @@
             contextMenu.style.display = 'block';
             contextMenu.style.left = e.pageX+'px';
             contextMenu.style.top = e.pageY+'px';
+
+            const btnDelete = document.getElementById('btnDelete');
+            btnDelete.style.display = 'none';
+            if (authorized && node.external) {
+                btnDelete.style.display = 'block';
+                btnDelete.onclick = e => deleteVessel(node);
+            }
+
             let groupList  = Object.values(groups);
             if (groupList.length > 0){
                 groupList = groupList.sort(function(a,b){
@@ -239,6 +255,7 @@
                     params[1].value = JSON.stringify([...addSet]);
                     params[2].value = JSON.stringify([...removeSet]);
                     params[3].value = JSON.stringify(updateMap);
+                    const formSave = document.getElementById("formSave");
                     formSave.submit();
                 }
             }

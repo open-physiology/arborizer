@@ -29,6 +29,7 @@ class MySQLConnector:
     def is_connected(self):
         return self.driver.is_connected()
 
+    # Get the list of available lyph templates
     def query_lyphs(self):
         cursor = self.driver.cursor()
         cursor.execute('SELECT * FROM lyphs where isTemplate=1')
@@ -41,6 +42,7 @@ class MySQLConnector:
         cursor.close()
         return items
 
+    # Show a list of vessels with their 'include' status, i.e., whether their children appear in the tree
     def query_included(self):
         cursor = self.driver.cursor()
         query = """
@@ -57,12 +59,12 @@ class MySQLConnector:
     # Get all vessels
     def query_vascular_nodes_map(self):
         cursor = self.driver.cursor()
-        query = """SELECT node_id, fma_id, name, vessel_type, external FROM master_vascular_vessels"""
+        query = """SELECT node_id, fma_id, name, vessel_type, COALESCE(external, 0) as external FROM master_vascular_vessels"""
         cursor.execute(query)
         nodes = {}
         for item in cursor:
             obj = {"nodeID": str(item[0]), "fmaID": str(item[1]), "name": item[2],
-                   "vesselType": str(item[3]), "external": item[3]}
+                   "vesselType": str(item[3]), "external": item[4]}
             nodes[obj["nodeID"]] = obj
         return nodes
 
@@ -94,6 +96,36 @@ class MySQLConnector:
         self.driver.commit()
         return next_id
 
+    # Check if a vessel can be deleted (i.e., not used in any of the vascular network versions)
+    def can_delete_vessel(self, external_id):
+        if not external_id:
+            return
+        cursor = self.driver.cursor()
+        query_table_names = """select concat( 'select * from ', a.table_name, 
+            ' where vl1originalID="{0}" or vl2originalID="{0}" UNION ALL ' )
+            from information_schema.tables a
+            where a.table_name like 'master_vascular_2024%';
+            """.format(external_id)
+        cursor.execute(query_table_names)
+        query = ""
+        for item in cursor:
+            query += item[0]
+        query += """ select * from master_vascular where vl1originalID="{0}" or vl2originalID="{0}" """.format(external_id)
+        cursor.execute(query)
+        row = cursor.fetchone()
+        return True if row is None else False
+
+    # Delete vessel from the list of vessels in the system
+    def delete_vessel(self, external_id):
+        cursor = self.driver.cursor()
+        query = """DELETE FROM master_vascular_vessels where fma_id = %s"""
+        cursor.execute(query, (external_id,))
+        count = cursor.rowcount
+        query = """DELETE FROM master_vascular_lyph_templates where VESSEL_FMA_ID = %s"""
+        cursor.execute(query, (external_id,))
+        self.driver.commit()
+        return count > 0
+
     # Get all edges to construct the vascular tree
     def query_vascular_edges(self):
         branches = []
@@ -102,7 +134,7 @@ class MySQLConnector:
             SELECT MAIN, BRANCH, CASE WHEN sequence = 0 THEN 1000 ELSE sequence END as sequence,
                 vl1originalID, vl2originalID, 
                 lyph_template_ID, node_colour, id, 
-                vl1originalvesselname, vl2originalvesselname, disabled from (
+                vl1originalvesselname, vl2originalvesselname, disabled, vessel_type from (
                 SELECT * FROM master_vascular WHERE MAIN in
                 (SELECT DISTINCT BRANCH FROM master_vascular, master_vascular_lyph_templates WHERE vl2originalID = VESSEL_FMA_ID and include)) as v
                 LEFT OUTER JOIN `master_vascular_lyph_templates` as lt ON v.vl1originalID = lt.VESSEL_FMA_ID
@@ -123,7 +155,7 @@ class MySQLConnector:
             obj = {"source": str(source), "target": str(item[1]), 'order': item[2],
                    'source_fma': str(item[3]), 'target_fma': str(item[4]),
                    'lyph_template': item[5], 'color': item[6], 'id': item[7],
-                   'source_name': item[8], 'target_name': item[9], 'disabled': item[10]}
+                   'source_name': item[8], 'target_name': item[9], 'disabled': item[10], 'vessel_type': item[11]}
             branches.append(obj)
             prev = source
         for b in branches:
@@ -162,6 +194,7 @@ class MySQLConnector:
         self.driver.commit()
         return res
 
+    # Update the template table with the flags of what end nodes to show
     def update_include(self, include, exclude, update):
         cursor = self.driver.cursor()
         if len(include) > 0:
@@ -175,13 +208,15 @@ class MySQLConnector:
         for key in update:
             self.update_template(key, update[key])
 
-    def update_template(self, fma_id, lyph_template_id):
+    # Associate a new lyph template with the vessel identified by external ID (called fmaID in the DB)
+    def update_template(self, external_id, lyph_template_id):
         cursor = self.driver.cursor()
         query = """update master_vascular_lyph_templates as v set v.lyph_template_ID=%s where v.VESSEL_FMA_ID='%s'"""
-        values = (lyph_template_id, fma_id)
+        values = (lyph_template_id, external_id)
         cursor.execute(query, values)
         print("UPDATE, affected rows: ", cursor.rowcount)
 
+    # Get all back-up versions
     def query_versions(self):
         cursor = self.driver.cursor()
         query = """
@@ -193,6 +228,7 @@ class MySQLConnector:
             versions.append(obj)
         return versions
 
+    # Copy content of back-up tables back to master_vascular and master_vascular_lyph_templates
     def restore_from_backup(self, label, backup_current):
         label_new = time.strftime('%Y%m%d%H%M%S')
         now_backup = time.strftime('%Y-%m-%d %H:%M:%S')
@@ -219,6 +255,7 @@ class MySQLConnector:
 
         self.driver.commit()
 
+    # Take snapshots of the current master_vascular and master_vascular_lyph_templates tables
     def create_backup(self, user, comment):
         label = time.strftime('%Y%m%d%H%M%S')
         now = time.strftime('%Y-%m-%d %H:%M:%S')
@@ -336,7 +373,7 @@ class MySQLConnector:
         cursor.execute(query)
         print("ADD-ORDER, affected rows: ", cursor.rowcount)
 
-    # Remove the order - TEST needed
+    # Remove the order
     def remove_order(self, params):
         branch_id = params[0]["branch"]
         query = """UPDATE master_vascular SET sequence=0 WHERE ID={0}""".format(branch_id)
@@ -348,6 +385,7 @@ class MySQLConnector:
         old_order = params[1]
         self.decrease_order(main, old_order)
 
+    # Update the order
     def update_order(self, params):
         branch_id = params[0]["branch"]
         order = params[0]["order"]
@@ -363,17 +401,4 @@ class MySQLConnector:
         cursor.execute(query)
         print("SET-ORDER, affected rows: ", cursor.rowcount)
 
-    # Delete duplicates from master_vascular
-    # q = """select * from master_vascular as x where x.ID in (
-    #     select SUBSTRING_INDEX(ids, ',', -1) AS redundant from (
-    #     select v.vl1originalID, v.vl2originalID, GROUP_CONCAT(id) as ids, GROUP_CONCAT(sequence) as seqs from master_vascular as v
-    #     group by v.vl1originalID, v.vl2originalID
-    #     having count(*) > 1) as v1)
-    #     order by x.vl1originalID, x.vl2originalID"""
-    # Clean vessels list
-    # """select * from master_vascular_vessels as y where y.node_id not in (
-    # select distinct * from (
-    # select v.main as node from master_vascular as v
-    # union
-    # select v.branch as node from master_vascular as v) as x) order by y.fma_id"""
-    # select x.name, count(*) from master_vascular_vessels as x group by x.name having count(*) > 1
+

@@ -75,6 +75,16 @@ def create_tree():
     group_id = None
     tree = []
 
+    def revise_id(id):
+        test = id
+        count = 2
+        while test in node_map:
+            test = id + "({0})".format(count)
+            count += 1
+        if count > 2:
+            return test
+        return id
+
     for branch in branches:
         s_id = branch["source"]
         t_id = branch["target"]
@@ -100,20 +110,14 @@ def create_tree():
             lnk = {
                 "id": lnk_id, "conveyingLyph": lyph_template, "source": s["id"], "target": t_id,
                 "fmaID": t["fmaID"], "color": color, "group": group_id,
-                "order": 0, "branch": branch["id"], 'disabled': branch["disabled"]
+                "order": 0, "branch": branch["id"], "disabled": branch["disabled"], "vesselType": branch["vessel_type"]
             }
             tree.append(lnk)
             group_id = None
         else:
             m_id = s_id + "_" + t_id
             # To ensure unique ID
-            test = m_id
-            count = 2
-            while test in node_map:
-                test = m_id + "({0})".format(count)
-                count += 1
-            if count > 2:
-                m_id = test
+            m_id = revise_id(m_id)
 
             m_label = source_name + " -> " + t["name"]
 
@@ -125,7 +129,7 @@ def create_tree():
                 "id": lnk1_id, "conveyingLyph": lyph_template, "source": s["id"], "target": m_id,
                 "fmaID": branch['source_fma'], "color": color, "group": group_id,
                 "connector": 1, "order": order, "branch": branch["id"],
-                "included": 1 if branch["source_fma"] in include_set else 0,
+                "included": 1 if branch["source_fma"] in include_set else 0, "vesselType": branch["vessel_type"]
             }
 
             lyph_id = "lyph-" + branch["target"]
@@ -134,7 +138,8 @@ def create_tree():
             lnk2 = {
                 "id": lnk2_id, "conveyingLyph": lyph_id, "source": m_id, "target": t_id, "fmaID": branch["target_fma"],
                 "color": color, "group": group_id, "branch": branch["id"],
-                "included": 1 if branch["target_fma"] in include_set else 0, 'disabled': branch["disabled"]
+                "included": 1 if branch["target_fma"] in include_set else 0, 'disabled': branch["disabled"],
+                "vesselType": branch["vessel_type"]
             }
 
             tree.append(lnk1)
@@ -159,7 +164,15 @@ def create_tree():
             nodes[parent.id] = parent
             loose_roots[parent.id] = parent
         parent = nodes[edge["source"]]
-        child = parent.child(edge["target"], node_map[edge["target"]]["name"], edge)
+
+        # Create node clones for loops
+        x = edge["target"]
+        if x in nodes and x not in loose_roots:
+            edge_copy = edge.copy()
+            edge_copy["clone"] = True
+            child = parent.child(edge["target"] + "_#", node_map[x]["name"] + "_#", edge_copy)
+        else:
+            child = parent.child(edge["target"], node_map[x]["name"], edge)
         nodes[child.id] = child
         if child.id in loose_roots:
             root_parents[child.id] = child
@@ -240,6 +253,31 @@ def create():
                 flash("Vessel created: " + str(vessel_id), 'success')
         except Exception as e:
             flash("Failed to add the vessel!", 'error')
+            print(e)
+    else:
+        flash("You are not authorized to alter the database! Please, login!", 'error')
+    return redirect(url_for("index"))
+
+
+@app.route('/delete', methods=['GET', 'POST'])
+def delete():
+    if session.get('logged_in'):
+        try:
+            if 'mysql_db' not in g or not g.mysql_db.is_connected():
+                g.mysql_db = MySQLConnector(db_name, db_user, db_pwd, db_server, db_port)
+            # external_id = request.args.get('externalID')
+            external = request.form['externalID']
+            ok_to_delete = g.mysql_db.can_delete_vessel(external)
+            if ok_to_delete:
+                is_deleted = g.mysql_db.delete_vessel(external)
+                if is_deleted:
+                    flash("Vessel deleted: " + external, 'success')
+                else:
+                    flash("Something went wrong: no such vessel is in the DB!", 'warning')
+            else:
+                flash("Cannot delete vessel " + external + ". Please remove it from the network or back-ups." )
+        except Exception as e:
+            flash("Failed to delete the vessel!", 'error')
             print(e)
     else:
         flash("You are not authorized to alter the database! Please, login!", 'error')

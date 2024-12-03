@@ -2,6 +2,10 @@
     You are not authorized to edit! Please, login!
 </div>
 
+{#<div id="divBuffer" class="w3-light-blue" style="display: none;">#}
+{#    Node in the buffer: {{ this.buffer }}#}
+{#</div>#}
+
 <div id="divLogin" style="display: none;" class="w3-modal">
     <div class="w3-modal-content">
         <header class="w3-container w3-teal">
@@ -24,6 +28,10 @@
       <input type="hidden" name="include" value=""/>
       <input type="hidden" name="exclude" value=""/>
       <input type="hidden" name="update" value=""/>
+</form>
+
+<form id="formDelete" action="/delete" method="POST">
+      <input type="hidden" name="externalID" value=""/>
 </form>
 
 <div id="divBackup" style="display: none;" class="w3-modal">
