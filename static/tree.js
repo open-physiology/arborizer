@@ -476,7 +476,9 @@ class Tree {
     setAsRoot(d){
         this.hideMenu();
         let g_id = "g_" + d.id;
-        this.groups[g_id] = ({"id": g_id, "name": d.name});
+        if (!(g_id in this.groups)){
+            this.groups[g_id] = ({"id": g_id, "name": d.name});
+        }
         return g_id;
     }
 
@@ -510,6 +512,7 @@ class Tree {
     paste(target){
         this.hideMenu();
         if (this.buffer) {
+
             let clone = {
                 "nodeID"    : this.buffer.id,
                 "name"      : this.buffer.name,
@@ -517,7 +520,7 @@ class Tree {
                 "vesselType": this.buffer.data.vesselType || "arterial",
                 "clone"     : true
             }
-            let g_id = target.data.group || this.setAsRoot(target);
+            let g_id = (target.data.connector && target.data.group) || this.setAsRoot(target);
             this.addToGroup(clone, this.groups[g_id]);
             this.buffer = null;
         }
