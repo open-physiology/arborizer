@@ -169,6 +169,7 @@ class MySQLConnector:
         self.driver.autocommit = False
         self.update_include(include, exclude, update)
         res = ""
+        errors = []
         for entry in entries:
             action_type = ActionType(entry["action"])
             params = entry["params"]
@@ -190,8 +191,11 @@ class MySQLConnector:
                 elif action_type == ActionType.DISABLE or action_type == ActionType.ENABLE:
                     self.disable_enable(params)
             except Exception as e:
-                res += "\nOperation failed: " + action_type
+                errors.append(action_type.value)
+                print(e)
         self.driver.commit()
+        if len(errors) > 0:
+            res = "Operation(s) failed: " + ','.join(errors)
         return res
 
     # Update the template table with the flags of what end nodes to show
@@ -270,7 +274,7 @@ class MySQLConnector:
         self.driver.commit()
         return now
 
-    # Remove edge from master_vascular (tested)
+    # Remove edge from master_vascular
     def remove_edge(self, params):
         branch_id = params[0]["branch"]
         main = params[0]["source"].split('_')[0]
@@ -300,7 +304,7 @@ class MySQLConnector:
         cursor.execute(query)
         print("ADJUST ORDER, affected rows: ", cursor.rowcount)
 
-    # Swap order of two edges, TEST needed
+    # Swap order of two edges
     def move_up_or_down(self, params):
         branch_id1 = params[0]["branch"]
         sequence1 = params[0]["order"]
@@ -322,7 +326,7 @@ class MySQLConnector:
         sequence = params[0]["order"]
         source = params[1]
 
-        query = """UPDATE master_vascular SET main={0}, vl1originalID={1}, vl1originalvesselname="{2}", sequence={3} WHERE ID={4}""".\
+        query = """UPDATE master_vascular SET main={0}, vl1originalID="{1}", vl1originalvesselname="{2}", sequence={3} WHERE ID={4}""".\
             format(source["nodeID"], source["fmaID"], source["name"], sequence, branch_id)
         cursor = self.driver.cursor()
         cursor.execute(query)
@@ -363,7 +367,7 @@ class MySQLConnector:
         cursor.execute(query)
         print("ENABLE-DISABLE, affected rows: ", cursor.rowcount)
 
-    # Add order to an unordered branch - TEST needed
+    # Add order to an unordered branch
     def add_order(self, params):
         branch_id = params[0]["branch"]
         sequence = params[0]["order"]
