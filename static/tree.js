@@ -165,6 +165,10 @@ class Tree {
                 curr = curr.children[1];
             }
         }
+        if (!curr){
+            window.alert("Cannot move " + d.name + " to " + group.name);
+            return;
+        }
         let n = d.parent.children.length;
         if (d.children?.length > 1) {
             d.parent.children[n-1] = d.children[1];
@@ -186,6 +190,7 @@ class Tree {
         if (curr.data.order) {
             d.data.order = curr.data.order + 1;
         }
+        d.name = group.name + d.name.substring(d.name.indexOf(" ->"));
         curr.children = curr.children || [];
         curr.children.push(d);
 
@@ -217,7 +222,7 @@ class Tree {
 
         let lnk1_id = "lnk-" + s_id + "_" + m_id
         let order = curr.data.order ? curr.data.order + 1 : 0;
-        let lnk1_name = curr.name + " to " + target.name
+        let lnk1_name = curr.name + " -> " + target.name
         let lnk1 = {
             "id": lnk1_id, "name": lnk1_name, "source": s_id, "target": m_id,
             "fmaID": curr.data.fmaID, "color": color, "group": group.id, "connector": 1, "order": order
@@ -535,7 +540,7 @@ class Tree {
         if (d.data?.connector) {
             return (d.data.order || '?');
         }
-        return d.name.substring(0, 20);
+        return d.name.substring(0, 15);
     }
 
     clear(){
@@ -595,7 +600,8 @@ class Tree {
             })
             .on("mousemove", d => tooltip.style("top", (d3.event.pageY - 10) + "px").style("left", (d3.event.pageX + 10) + "px"))
             .on("mouseout", d => tooltip.style("visibility", "hidden"))
-            .on('contextmenu', d => onRightClick(d));
+            .on('contextmenu', d => onRightClick(d))
+            .on('click', d => console.log(d))
 
         const onRightClick = d => {
             d3.event.preventDefault();
@@ -639,7 +645,60 @@ class Tree {
             btnCopy.style.display = "none";
             btnPaste.style.display = "none";
 
-            if (!d.data.connector){
+            let ul = document.getElementById('ulChange');
+            ul.innerHTML = '';
+
+            if (d.data.connector){
+                // Actions that apply to connector nodes in a group
+                // NK it is important not to allow actions on a newly added branch - no row ID exists
+                if (d.data.branch && d.data.group && d.children?.length >= 0) {
+                    btnRemove.onclick = e => this.removeNode(d);
+                    btnRemove.style.display = "block";
+
+                    btnMoveUp.onclick = e => this.moveUp(d);
+                    btnMoveDown.onclick = e => this.moveDown(d);
+                    btnAddOrder.onclick = e => this.addOrder(d);
+                    btnRemoveOrder.onclick = e => this.removeOrder(d);
+                    btnSetOrder.onclick = e => this.enterOrder(d);
+
+                    // Can move up if not the first
+                    if (d.data.order > 1) {
+                        btnMoveUp.style.display = "block";
+                    }
+                    // Can move down if not the last
+                    if (d.children?.length > 1 && d.children[1].data.order) {
+                        btnMoveDown.style.display = "block";
+                    }
+                    if (!d.data?.order) {
+                        // Can add order if there is no order
+                        btnAddOrder.style.display = "block";
+                    } else {
+                        btnRemoveOrder.style.display = "block";
+                        btnSetOrder.style.display = "block";
+                    }
+
+                    let groupList = Object.values(this.groups);
+                    if (groupList.length > 0) {
+                        groupList = groupList.sort(function (a, b) {
+                            if (a.name > b.name) return 1;
+                            if (a.name < b.name) return -1;
+                            return 0;
+                        });
+
+                        const renderGroupMenu = group => {
+                            if (d.data?.group !== group.id) {
+                                let li = document.createElement('li');
+                                ul.appendChild(li);
+                                let btn = document.createElement('button');
+                                btn.onclick = e => this.moveToGroup(d, group);
+                                btn.innerHTML = ">>" + group.name;
+                                li.appendChild(btn);
+                            }
+                        }
+                        groupList.forEach(renderGroupMenu);
+                    }
+                }
+            } else {
                 //Actions that apply to end nodes
                 if (!d.data.clone) {
                     if (d.data.included) {
@@ -672,59 +731,6 @@ class Tree {
                 if (!d.parent?.data.connector) {
                     btnRemove.onclick = e => this.removeNode(d);
                     btnRemove.style.display = "block";
-                }
-            } else {
-                // Actions that apply to connector nodes in a group
-                // NK it is important not to allow actions on a newly added branch - no row ID exists
-                if (d.data.branch && d.data.group && d.children?.length >= 0) {
-                    btnRemove.onclick = e => this.removeNode(d);
-                    btnRemove.style.display = "block";
-
-                    btnMoveUp.onclick = e => this.moveUp(d);
-                    btnMoveDown.onclick = e => this.moveDown(d);
-                    btnAddOrder.onclick = e => this.addOrder(d);
-                    btnRemoveOrder.onclick = e => this.removeOrder(d);
-                    btnSetOrder.onclick = e => this.enterOrder(d);
-
-                    // Can move up if not the first
-                    if (d.data.order > 1) {
-                        btnMoveUp.style.display = "block";
-                    }
-                    // Can move down if not the last
-                    if (d.children?.length > 1 && d.children[1].data.order) {
-                        btnMoveDown.style.display = "block";
-                    }
-                    if (!d.data?.order) {
-                        // Can add order if there is no order
-                        btnAddOrder.style.display = "block";
-                    } else {
-                        btnRemoveOrder.style.display = "block";
-                        btnSetOrder.style.display = "block";
-                    }
-
-                    let groupList = Object.values(this.groups);
-                    if (groupList.length > 0 && d.data.order > 1) {
-                        groupList = groupList.sort(function (a, b) {
-                            if (a.name > b.name) return 1;
-                            if (a.name < b.name) return -1;
-                            return 0;
-                        });
-
-                        let ul = document.getElementById('ulChange');
-                        ul.innerHTML = '';
-
-                        const renderGroupMenu = group => {
-                            if (d.data?.group !== group.id) {
-                                let li = document.createElement('li');
-                                ul.appendChild(li);
-                                let btn = document.createElement('button');
-                                btn.onclick = e => this.moveToGroup(d, group);
-                                btn.innerHTML = ">>" + group.name;
-                                li.appendChild(btn);
-                            }
-                        }
-                        groupList.forEach(renderGroupMenu);
-                    }
                 }
             }
             //We can insert a copied node to a group or to an end node
