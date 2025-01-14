@@ -93,15 +93,15 @@
             try {
                 let dataFlat = [];
                 function toJSON(root){
-                    let rootCopy = {...root};
-                    if (root.children) {
-                        rootCopy.children = root.children.map(child => child.id)
+                    let curr = root;
+                    while (curr.children?.length > 0 && curr.children[0].data?.disabled) {
+                        curr = curr.children[curr.children.length-1];
                     }
-                    if (!root.data?.disabled) {
-                        dataFlat.push(rootCopy);
-                    }
-                    if (root.children) {
-                        root.children.forEach(child => toJSON(child));
+                    let rootCopy = {...curr};
+                    rootCopy.children = curr.children.map(child => child.id);
+                    dataFlat.push(rootCopy);
+                    if (curr.children) {
+                        curr.children.forEach(child => toJSON(child));
                     }
                 }
                 toJSON(data);

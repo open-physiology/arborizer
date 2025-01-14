@@ -555,7 +555,7 @@ class Tree {
 
         // Normalize for fixed-depth.
         nodes.forEach(function (d) {
-            d.y = d.depth * 30;
+            d.y = d.depth * 35;
         });
 
         // function isShort(d){
