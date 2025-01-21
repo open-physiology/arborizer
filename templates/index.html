@@ -143,8 +143,17 @@
             if (window.confirm("Are you sure you want to permanently delete this vessel?")) {
                 let params = document.querySelectorAll('#formDelete input[type="hidden"]')
                 params[0].value = node.fmaID;
-                const formDelete = document.getElementById("formDelete");
-                formDelete.submit();
+                const form = document.getElementById("formDelete");
+                form.submit();
+            }
+        }
+
+        function deleteVersion(versionID){
+             if (window.confirm(`Are you sure you want to permanently delete back-up ${versionID}?`)) {
+                let params = document.querySelectorAll('#formDeleteVersion input[type="hidden"]')
+                params[0].value = versionID;
+                const form = document.getElementById("formDeleteVersion");
+                form.submit();
             }
         }
 
@@ -225,7 +234,7 @@
             isChange.style.display = 'inline';
         }
 
-        async function backup(){
+        function backup(){
             if (!authorized){
                 window.alert("You are not authorized to perform this action! Please, login!");
             } else {
@@ -233,7 +242,7 @@
             }
         }
 
-        async function restore(){
+        function restore(){
             if (!authorized){
                 window.alert("You are not authorized to perform this action! Please, login!");
             } else {

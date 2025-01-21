@@ -284,6 +284,22 @@ def delete():
     return redirect(url_for("index"))
 
 
+@app.route('/delete_version', methods=['GET', 'POST'])
+def delete_version():
+    if session.get('logged_in'):
+        if 'mysql_db' not in g or not g.mysql_db.is_connected():
+            g.mysql_db = MySQLConnector(db_name, db_user, db_pwd, db_server, db_port)
+        version = request.form['versionID']
+        try:
+            g.mysql_db.delete_backup(version)
+            flash("Backup deleted: " + version, 'success')
+        except Exception as e:
+            flash("Failed to delete the backup: " + version, 'error')
+    else:
+        flash("You are not authorized to alter the database! Please, login!", 'error')
+    return redirect(url_for("index"))
+
+
 @app.route('/restore', methods=['GET', 'POST'])
 def restore():
     if session.get('logged_in'):

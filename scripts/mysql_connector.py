@@ -259,6 +259,15 @@ class MySQLConnector:
 
         self.driver.commit()
 
+    def delete_backup(self, label):
+        cursor = self.driver.cursor()
+        query_drop = """DROP TABLE IF EXISTS master_vascular_{0}, master_vascular_lyph_templates_{0}""".format(label)
+        print(query_drop)
+        cursor.execute(query_drop)
+        query_clear_logs = """DELETE from master_vascular_logs WHERE id={0}""".format(label)
+        cursor.execute(query_clear_logs)
+        self.driver.commit()
+
     # Take snapshots of the current master_vascular and master_vascular_lyph_templates tables
     def create_backup(self, user, comment):
         label = time.strftime('%Y%m%d%H%M%S')
