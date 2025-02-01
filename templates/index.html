@@ -97,9 +97,11 @@
                     while (curr.children?.length > 0 && curr.children[0].data?.disabled) {
                         curr = curr.children[curr.children.length-1];
                     }
-                    let rootCopy = {...curr};
-                    rootCopy.children = curr.children.map(child => child.id);
-                    dataFlat.push(rootCopy);
+                    if (!curr.data || !curr.data.disabled) {
+                        let rootCopy = {...curr};
+                        rootCopy.children = curr.children.map(child => child.id);
+                        dataFlat.push(rootCopy);
+                    }
                     if (curr.children) {
                         curr.children.forEach(child => toJSON(child));
                     }
