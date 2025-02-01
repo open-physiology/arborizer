@@ -12,7 +12,8 @@
     {{ toastr.include_toastr_css() }}
     {{ toastr.message() }}
 </head>
-<script src="{{url_for('static', filename='node_modules/file-saver/dist/FileSaver.js')}}"></script>
+{#<script src="{{url_for('static', filename='node_modules/file-saver/dist/FileSaver.js')}}"></script>#}
+<script src="http://cdn.jsdelivr.net/g/filesaver.js"></script>
 
 <body>
     <div id="mainMenu" class="w3-sidebar w3-bar-block toolbar">
