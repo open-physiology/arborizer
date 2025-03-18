@@ -93,14 +93,23 @@
             dataStr = "";
             try {
                 let dataFlat = [];
+                let used = new Set();
                 function toJSON(root){
+                    if (used.has(root.id)){
+                        return;
+                    }
                     let curr = root;
                     while (curr.children?.length > 0 && curr.children[0].data?.disabled) {
                         curr = curr.children[curr.children.length-1];
                     }
                     if (!curr.data || !curr.data.disabled) {
                         let rootCopy = {...curr};
-                        rootCopy.children = curr.children.map(child => child.id);
+                        rootCopy.children = curr.children.map(child => child.id.replace("_#", ""));
+                        if (rootCopy.id.endsWith("_#")){
+                            rootCopy.id = rootCopy.id.replace("_#", "");
+                            rootCopy.name = rootCopy.name.replace("_#", "");
+                            used.add(rootCopy.id);
+                        }
                         dataFlat.push(rootCopy);
                     }
                     if (curr.children) {
