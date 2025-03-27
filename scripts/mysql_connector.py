@@ -19,6 +19,7 @@ class ActionType(Enum):
 class MySQLConnector:
 
     def __init__(self, database: str, user: str, password: str, host: str, port: str):
+        self.db_name = database
         self.driver = mysql.connector.connect(user=user, password=password, database=database, host=host,
                                               port=port, auth_plugin='mysql_native_password')
 
@@ -104,8 +105,8 @@ class MySQLConnector:
         query_table_names = """select concat( 'select * from ', a.table_name, 
             ' where vl1originalID="{0}" or vl2originalID="{0}" UNION ALL ' )
             from information_schema.tables a
-            where a.table_name like 'master_vascular_20%' and a.table_schema = '***REMOVED***';
-            """.format(external_id)
+            where a.table_name like 'master_vascular_20%' and a.table_schema = '{1}';
+            """.format(external_id, self.db_name)
         cursor.execute(query_table_names)
         query = ""
         for item in cursor:
