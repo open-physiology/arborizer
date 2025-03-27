@@ -104,7 +104,7 @@ class MySQLConnector:
         query_table_names = """select concat( 'select * from ', a.table_name, 
             ' where vl1originalID="{0}" or vl2originalID="{0}" UNION ALL ' )
             from information_schema.tables a
-            where a.table_name like 'master_vascular_2024%';
+            where a.table_name like 'master_vascular_20%' and a.table_schema = '***REMOVED***';
             """.format(external_id)
         cursor.execute(query_table_names)
         query = ""
