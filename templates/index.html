@@ -155,9 +155,11 @@
                 let lyph = {
                     "id": "lyph_" + curr.data.id,
                     "name": curr.name,
-                    "supertype": curr.data.conveyingLyph,
                     "_next": []
                 };
+                if (curr.data.conveyingLyph){
+                    lyph.supertype = curr.data.conveyingLyph;
+                }
                 if (!(lyph.id in lyphMap)) {
                     lyphMap[lyph.id] = lyph;
                     lyphs.push(lyph);
