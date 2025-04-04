@@ -16,272 +16,362 @@
 <script src="https://cdn.jsdelivr.net/g/filesaver.js"></script>
 
 <body>
-    <div id="mainMenu" class="w3-sidebar w3-bar-block toolbar">
-       <div class="w3-border">
-           <button id="btnShow" class="w3-bar-item w3-hover-light-grey" title="Show vessels" onclick=openNav()>☰</button>
-           <button id="btnHide" class="w3-bar-item w3-hover-light-grey" style="display: none" title="Hide vessels" onclick=closeNav()>×</button>
-           <button id="btnShowInc" class="w3-bar-item w3-hover-light-grey" title="Show included" onclick=openNavInc()>☑</button>
-           <button id="btnHideInc" class="w3-bar-item w3-hover-light-grey" style="display: none" title="Hide included" onclick=closeNavInc()>×</button>
-       </div>
-       <div class="w3-border">
-           <button id="btnLogin" class="w3-bar-item w3-hover-light-grey" title="Log in" onclick=login()>🔒</button>
-           <button id="btnLogout" class="w3-bar-item w3-hover-light-grey" title="Log out" onclick=logout()>🔓</button>
-           <button id="btnBackup" class="w3-bar-item w3-hover-light-grey" title="Create backup" onclick=backup()>▼</button>
-           <button id="btnRestore" class="w3-bar-item w3-hover-light-grey" title="Restore from backup" onclick=restore()>▲</button>
-           <button id="btnApply" class="w3-bar-item w3-hover-light-grey" title="Apply changes"
-                   onclick=applyChanges()>✓<span id="isChange" style="display: none; color: red;">*</span>
-           </button>
-       </div>
-       <div class="w3-border">
-           <button id="btnDownload" class="w3-bar-item w3-hover-light-grey" title="Download" onclick=download()>⇩</button>
-       </div>
-       {{ toastr.include_toastr_js() }}
+<div id="mainMenu" class="w3-sidebar w3-bar-block toolbar">
+    <div class="w3-border">
+        <button id="btnShow" class="w3-bar-item w3-hover-light-grey" title="Show vessels" onclick=openNav()>☰</button>
+        <button id="btnHide" class="w3-bar-item w3-hover-light-grey" style="display: none" title="Hide vessels"
+                onclick=closeNav()>×
+        </button>
+        <button id="btnShowInc" class="w3-bar-item w3-hover-light-grey" title="Show included" onclick=openNavInc()>☑
+        </button>
+        <button id="btnHideInc" class="w3-bar-item w3-hover-light-grey" style="display: none" title="Hide included"
+                onclick=closeNavInc()>×
+        </button>
     </div>
+    <div class="w3-border">
+        <button id="btnLogin" class="w3-bar-item w3-hover-light-grey" title="Log in" onclick=login()>🔒</button>
+        <button id="btnLogout" class="w3-bar-item w3-hover-light-grey" title="Log out" onclick=logout()>🔓</button>
+        <button id="btnBackup" class="w3-bar-item w3-hover-light-grey" title="Create backup" onclick=backup()>▼</button>
+        <button id="btnRestore" class="w3-bar-item w3-hover-light-grey" title="Restore from backup" onclick=restore()>
+            ▲
+        </button>
+        <button id="btnApply" class="w3-bar-item w3-hover-light-grey" title="Apply changes"
+                onclick=applyChanges()>✓<span id="isChange" style="display: none; color: red;">*</span>
+        </button>
+    </div>
+    <div class="w3-border">
+        <button id="btnDownloadApi" class="w3-bar-item w3-hover-light-grey" title="Download ApiNATOMY model"
+                onclick=downloadApi()>⏬
+        </button>
+        {#           <button id="btnCommitApi" class="w3-bar-item w3-hover-light-grey" title="Commit ApiNATOMY model" onclick=commitApi()>⏩</button>#}
+    </div>
+    <div class="w3-border">
+        <button id="btnDownload" class="w3-bar-item w3-hover-light-grey" title="Download" onclick=download()>⇩</button>
+    </div>
+    {{ toastr.include_toastr_js() }}
+</div>
 
-    {% include 'login.html' %}
-    {% include 'list.html' %}
-    {% include 'tree.html' %}
+{% include 'login.html' %}
+{% include 'list.html' %}
+{% include 'tree.html' %}
 
-    <script>
-        const contextMenu = document.getElementById("listContextMenu");
-        const tree = document.getElementById("tree");
+<script>
+    const contextMenu = document.getElementById("listContextMenu");
+    const tree = document.getElementById("tree");
 
-        const btnLogin = document.getElementById("btnLogin");
-        const btnLogout = document.getElementById("btnLogout");
+    const btnLogin = document.getElementById("btnLogin");
+    const btnLogout = document.getElementById("btnLogout");
 
-        const isChange = document.getElementById("isChange");
-        const btnApply = document.getElementById("btnApply");
-        const btnBackup = document.getElementById("btnBackup");
-        const btnRestore = document.getElementById("btnRestore");
+    const isChange = document.getElementById("isChange");
+    const btnApply = document.getElementById("btnApply");
+    const btnBackup = document.getElementById("btnBackup");
+    const btnRestore = document.getElementById("btnRestore");
 
-        const divLogin = document.getElementById("divLogin");
-        const divAccess = document.getElementById("divAccess");
-        const divBackup = document.getElementById("divBackup");
-        const divRestore = document.getElementById("divRestore");
+    const divLogin = document.getElementById("divLogin");
+    const divAccess = document.getElementById("divAccess");
+    const divBackup = document.getElementById("divBackup");
+    const divRestore = document.getElementById("divRestore");
 
-        document.addEventListener("click", function(){
-            if (contextMenu.style.display === "block"){
-                hideListMenu();
-            }
-        });
-
-        let actions, addSet, removeSet, updateMap, includedOptions, vessels, groups, data, dataStr, authorized, treeDiagram;
-        vessels = {{ vessels | safe }};
-        vessels.forEach(vessel => {
-            let vesselOption = document.getElementById("vesselOption"+vessel.nodeID);
-            if (vesselOption) {
-                vesselOption.oncontextmenu = e => showMenu(e, vessel);
-            }
-        });
-
-        lyphTemplates = {{ lyphTemplates | safe }};
-
-        prepareTreeView();
-
-        function prepareTreeView() {
-            actions = [];
-            addSet = new Set();
-            removeSet = new Set();
-            updateMap = {};
-
-            includedOptions = {{ includedOptions | safe }};
-            versions = {{ versions | safe }};
-            groups = {{ groups | safe }};
-            data = {{ data | safe }};
-            authorized =  {{ authorized | tojson }};
-
-            dataStr = "";
-            try {
-                let dataFlat = [];
-                let used = new Set();
-                function toJSON(root){
-                    if (used.has(root.id)){
-                        return;
-                    }
-                    let curr = root;
-                    while (curr.children?.length > 0 && curr.children[0].data?.disabled) {
-                        curr = curr.children[curr.children.length-1];
-                    }
-                    if (!curr.data || !curr.data.disabled) {
-                        let rootCopy = {...curr};
-                        rootCopy.children = curr.children.map(child => child.id.replace("_#", ""));
-                        if (rootCopy.id.endsWith("_#")){
-                            rootCopy.id = rootCopy.id.replace("_#", "");
-                            rootCopy.name = rootCopy.name.replace("_#", "");
-                            used.add(rootCopy.id);
-                        }
-                        dataFlat.push(rootCopy);
-                    }
-                    if (curr.children) {
-                        curr.children.forEach(child => toJSON(child));
-                    }
-                }
-                toJSON(data);
-                dataStr = JSON.stringify(dataFlat, null, 2);
-            } catch (error){
-                console.log("Unable to prepare JSON output!");
-                console.log(error);
-            }
-            setAuthorization()
-            treeDiagram = new Tree(data, groups, actions);
-        }
-
-        function download(){
-            const blob = new Blob([dataStr], {type: 'application/json'});
-            let currentdate = new Date();
-            let ext = "" + currentdate.getDate() + "-"
-                + (currentdate.getMonth()+1)  + "-"
-                + currentdate.getFullYear() + "@"
-                + currentdate.getHours() + "_"
-                + currentdate.getMinutes() + "_"
-                + currentdate.getSeconds();
-            saveAs(blob, `arborizer${ext}.json`);
-        }
-
-        function login(){
-            divLogin.style.display = "block";
-        }
-
-        async function logout(){
-            if (window.confirm("Are you sure you want to log out?")) {
-                await fetch("/logout");
-                authorized = false;
-                setAuthorization();
-            }
-        }
-
-        function deleteVessel(node){
+    document.addEventListener("click", function () {
+        if (contextMenu.style.display === "block") {
             hideListMenu();
-            if (window.confirm("Are you sure you want to permanently delete this vessel?")) {
-                let params = document.querySelectorAll('#formDelete input[type="hidden"]')
-                params[0].value = node.fmaID;
-                const form = document.getElementById("formDelete");
-                form.submit();
-            }
         }
+    });
 
-        function deleteVersion(versionID){
-             if (window.confirm(`Are you sure you want to permanently delete back-up ${versionID}?`)) {
-                let params = document.querySelectorAll('#formDeleteVersion input[type="hidden"]')
-                params[0].value = versionID;
-                const form = document.getElementById("formDeleteVersion");
-                form.submit();
-            }
+    let actions, addSet, removeSet, updateMap, includedOptions, vessels, groups, data, dataStr, authorized, treeDiagram;
+    vessels = {{ vessels | safe }};
+    vessels.forEach(vessel => {
+        let vesselOption = document.getElementById("vesselOption" + vessel.nodeID);
+        if (vesselOption) {
+            vesselOption.oncontextmenu = e => showMenu(e, vessel);
         }
+    });
 
-        function setAuthorization(){
-            if (authorized){
-                btnLogin.style.display = "none";
-                btnLogout.style.display = "block";
-                divAccess.style.display = "none";
-            } else {
-                btnLogout.style.display = "none";
-                btnLogin.style.display = "block";
-                divAccess.style.display = "block";
-            }
-        }
+    lyphTemplates = {{ lyphTemplates | safe }};
 
-        function showMenu(e, node){
-            e.preventDefault();
-            contextMenu.style.display = 'block';
-            contextMenu.style.left = e.pageX+'px';
-            contextMenu.style.top = e.pageY+'px';
+    prepareTreeView();
 
-            const btnDelete = document.getElementById('btnDelete');
-            btnDelete.style.display = 'none';
-            if (authorized && node.external) {
-                btnDelete.style.display = 'block';
-                btnDelete.onclick = e => deleteVessel(node);
-            }
+    function prepareTreeView() {
+        actions = [];
+        addSet = new Set();
+        removeSet = new Set();
+        updateMap = {};
 
-            let groupList  = Object.values(groups);
-            if (groupList.length > 0){
-                groupList = groupList.sort(function(a,b){
-                        if (a.name > b.name) return 1;
-                        if (a.name < b.name) return -1;
-                        return 0;
-                    });
-                let ul = document.getElementById('ulAdd');
-                ul.innerHTML = '';
-                function renderGroupMenu(group) {
-                    let li = document.createElement('li');
-                    ul.appendChild(li);
-                    let btn = document.createElement('button');
-                    btn.onclick = e => addToGroup(node, group);
-                    btn.innerHTML = ">>" + group.name;
-                    li.appendChild(btn);
+        includedOptions = {{ includedOptions | safe }};
+        versions = {{ versions | safe }};
+        groups = {{ groups | safe }};
+        data = {{ data | safe }};
+        authorized =  {{ authorized | tojson }};
+
+        dataStr = "";
+        try {
+            let dataFlat = [];
+            let used = new Set();
+
+            function toJSON(root) {
+                if (used.has(root.id)) {
+                    return;
                 }
-                groupList.forEach(renderGroupMenu);
-            }
-        }
-
-        function hideListMenu() {
-            contextMenu.style.display = "none"
-        }
-
-        function addToGroup(node, group){
-            hideListMenu();
-            let res = treeDiagram.addToGroup(node, group);
-            if (res){
-                //Disable added
-                let vesselOption = document.getElementById("vesselOption"+node.nodeID);
-                vesselOption.classList.add('disabled');
-                vesselOption.removeAttribute("onclick");
-            }
-        }
-
-        function saveAction(action, node) {
-            actions.push({"action": action, "node": node});
-        }
-
-        function toggleIncludeOption(node){
-            node.included = node.included? 0: 1;
-            if (node.included){
-                addSet.add(node.fmaID);
-                removeSet.delete(node.fmaID);
-            } else {
-                addSet.delete(node.fmaID);
-                removeSet.add(node.fmaID);
-            }
-            isChange.style.display = 'inline';
-        }
-
-        function backup(){
-            if (!authorized){
-                window.alert("You are not authorized to perform this action! Please, login!");
-            } else {
-                divBackup.style.display = "block"
-            }
-        }
-
-        function restore(){
-            if (!authorized){
-                window.alert("You are not authorized to perform this action! Please, login!");
-            } else {
-                divRestore.style.display = "block"
-            }
-        }
-
-        function applyChanges(){
-            if (!authorized){
-                window.alert("You are not authorized to perform this action! Please, login!");
-                return;
-            }
-            if (actions.length === 0 && addSet.size === 0 && removeSet.size === 0 && updateMap.size === 0){
-                window.alert("No changes detected!");
-            } else {
-                if (window.confirm("Save changes in the database?")) {
-                    let params = document.querySelectorAll('#formSave input[type="hidden"]')
-                    params[0].value = JSON.stringify(actions);
-                    params[1].value = JSON.stringify([...addSet]);
-                    params[2].value = JSON.stringify([...removeSet]);
-                    params[3].value = JSON.stringify(updateMap);
-                    const formSave = document.getElementById("formSave");
-                    formSave.submit();
+                let curr = root;
+                while (curr.children?.length > 0 && curr.children[0].data?.disabled) {
+                    curr = curr.children[curr.children.length - 1];
+                }
+                if (!curr.data || !curr.data.disabled) {
+                    let rootCopy = {...curr};
+                    rootCopy.children = curr.children.map(child => child.id.replace("_#", ""));
+                    if (rootCopy.id.endsWith("_#")) {
+                        rootCopy.id = rootCopy.id.replace("_#", "");
+                        rootCopy.name = rootCopy.name.replace("_#", "");
+                        used.add(rootCopy.id);
+                    }
+                    dataFlat.push(rootCopy);
+                }
+                if (curr.children) {
+                    curr.children.forEach(child => toJSON(child));
                 }
             }
+
+            toJSON(data);
+            dataStr = JSON.stringify(dataFlat, null, 2);
+        } catch (error) {
+            console.log("Unable to prepare JSON output!");
+            console.log(error);
         }
-    </script>
+        setAuthorization()
+        treeDiagram = new Tree(data, groups, actions);
+    }
+
+    function downloadApi() {
+        let lyphs = [];
+        let lyphMap = {};
+
+        function generateLyphs(target, source) {
+            let curr = target;
+            while (curr.children?.length > 0 && curr.children[0].data?.disabled) {
+                curr = curr.children[curr.children.length - 1];
+            }
+             if (source?.data && curr.data && !curr.data.disabled && (curr.data.connector ||
+                curr.data.included && curr.children?.length > 0)) {
+                let lyph = {
+                    "id": "lyph_" + curr.data.id,
+                    "name": curr.name,
+                    "supertype": curr.data.conveyingLyph,
+                    "_next": []
+                };
+                if (!(lyph.id in lyphMap)) {
+                    lyphMap[lyph.id] = lyph;
+                    lyphs.push(lyph);
+                }
+                if ((source?.data.id !== curr.data.id)) {
+                    lyph._prev = "lyph_" + source.data.id;
+                    if (lyph._prev in lyphMap) {
+                        lyphMap[lyph._prev]._next.push(lyph.id);
+                    } else {
+                        console.error("Undefined lyph._prev: ", lyph._prev);
+                    }
+                }
+            }
+            curr.children?.forEach(child => generateLyphs(child, curr));
+        }
+
+        generateLyphs(data);
+
+        let chains = [];
+        let chainEnds = lyphs.filter(lyph => lyph._next.length === 0);
+        chainEnds.forEach(lyph => {
+            let chain = {
+                "id": lyph.id.replace("lyph_", "chain_").replace("lnk-", ""),
+                "name": "Chain " + lyph.name,
+                "lyphs": [lyph.id]
+            }
+            let prevID = lyph._prev;
+            while (prevID) {
+                let prev = lyphMap[prevID];
+                chain.lyphs.unshift(prevID);
+                prevID = prev._prev;
+            }
+            chains.push(chain);
+        });
+        lyphs.forEach(lyph => {
+            delete lyph._prev;
+            delete lyph._next;
+            lyph.id = lyph.id.replace("lnk-", "");
+        });
+        chains.forEach(chain => chain.lyphs = chain.lyphs.map(x => x.replace("lnk-", "")));
+
+        let model = {
+            "id": "vascular",
+            "name": "vascular",
+            "imports": ["https://raw.githubusercontent.com/albatros13/apinatomy-models/main/wbrcm.json"],
+            "lyphs": lyphs,
+            "chains": chains
+        }
+        let modelStr = JSON.stringify(model, null, 2);
+        const blob = new Blob([modelStr], {type: 'application/json'});
+        saveAs(blob, `vascular-model${getDateTime()}.json`);
+    }
+
+    function getDateTime() {
+        let currentdate = new Date();
+        return "" + currentdate.getDate() + "-"
+            + (currentdate.getMonth() + 1) + "-"
+            + currentdate.getFullYear() + "@"
+            + currentdate.getHours() + "_"
+            + currentdate.getMinutes() + "_"
+            + currentdate.getSeconds();
+    }
+
+    function download() {
+        const blob = new Blob([dataStr], {type: 'application/json'});
+        saveAs(blob, `arborizer${getDateTime()}.json`);
+    }
+
+    function login() {
+        divLogin.style.display = "block";
+    }
+
+    async function logout() {
+        if (window.confirm("Are you sure you want to log out?")) {
+            await fetch("/logout");
+            authorized = false;
+            setAuthorization();
+        }
+    }
+
+    function deleteVessel(node) {
+        hideListMenu();
+        if (window.confirm("Are you sure you want to permanently delete this vessel?")) {
+            let params = document.querySelectorAll('#formDelete input[type="hidden"]')
+            params[0].value = node.fmaID;
+            const form = document.getElementById("formDelete");
+            form.submit();
+        }
+    }
+
+    function deleteVersion(versionID) {
+        if (window.confirm(`Are you sure you want to permanently delete back-up ${versionID}?`)) {
+            let params = document.querySelectorAll('#formDeleteVersion input[type="hidden"]')
+            params[0].value = versionID;
+            const form = document.getElementById("formDeleteVersion");
+            form.submit();
+        }
+    }
+
+    function setAuthorization() {
+        if (authorized) {
+            btnLogin.style.display = "none";
+            btnLogout.style.display = "block";
+            divAccess.style.display = "none";
+        } else {
+            btnLogout.style.display = "none";
+            btnLogin.style.display = "block";
+            divAccess.style.display = "block";
+        }
+    }
+
+    function showMenu(e, node) {
+        e.preventDefault();
+        contextMenu.style.display = 'block';
+        contextMenu.style.left = e.pageX + 'px';
+        contextMenu.style.top = e.pageY + 'px';
+
+        const btnDelete = document.getElementById('btnDelete');
+        btnDelete.style.display = 'none';
+        if (authorized && node.external) {
+            btnDelete.style.display = 'block';
+            btnDelete.onclick = e => deleteVessel(node);
+        }
+
+        let groupList = Object.values(groups);
+        if (groupList.length > 0) {
+            groupList = groupList.sort(function (a, b) {
+                if (a.name > b.name) return 1;
+                if (a.name < b.name) return -1;
+                return 0;
+            });
+            let ul = document.getElementById('ulAdd');
+            ul.innerHTML = '';
+
+            function renderGroupMenu(group) {
+                let li = document.createElement('li');
+                ul.appendChild(li);
+                let btn = document.createElement('button');
+                btn.onclick = e => addToGroup(node, group);
+                btn.innerHTML = ">>" + group.name;
+                li.appendChild(btn);
+            }
+
+            groupList.forEach(renderGroupMenu);
+        }
+    }
+
+    function hideListMenu() {
+        contextMenu.style.display = "none"
+    }
+
+    function addToGroup(node, group) {
+        hideListMenu();
+        let res = treeDiagram.addToGroup(node, group);
+        if (res) {
+            //Disable added
+            let vesselOption = document.getElementById("vesselOption" + node.nodeID);
+            vesselOption.classList.add('disabled');
+            vesselOption.removeAttribute("onclick");
+        }
+    }
+
+    function saveAction(action, node) {
+        actions.push({"action": action, "node": node});
+    }
+
+    function toggleIncludeOption(node) {
+        node.included = node.included ? 0 : 1;
+        if (node.included) {
+            addSet.add(node.fmaID);
+            removeSet.delete(node.fmaID);
+        } else {
+            addSet.delete(node.fmaID);
+            removeSet.add(node.fmaID);
+        }
+        isChange.style.display = 'inline';
+    }
+
+    function backup() {
+        if (!authorized) {
+            window.alert("You are not authorized to perform this action! Please, login!");
+        } else {
+            divBackup.style.display = "block"
+        }
+    }
+
+    function restore() {
+        if (!authorized) {
+            window.alert("You are not authorized to perform this action! Please, login!");
+        } else {
+            divRestore.style.display = "block"
+        }
+    }
+
+    function applyChanges() {
+        if (!authorized) {
+            window.alert("You are not authorized to perform this action! Please, login!");
+            return;
+        }
+        if (actions.length === 0 && addSet.size === 0 && removeSet.size === 0 && updateMap.size === 0) {
+            window.alert("No changes detected!");
+        } else {
+            if (window.confirm("Save changes in the database?")) {
+                let params = document.querySelectorAll('#formSave input[type="hidden"]')
+                params[0].value = JSON.stringify(actions);
+                params[1].value = JSON.stringify([...addSet]);
+                params[2].value = JSON.stringify([...removeSet]);
+                params[3].value = JSON.stringify(updateMap);
+                const formSave = document.getElementById("formSave");
+                formSave.submit();
+            }
+        }
+    }
+</script>
 
 </body>
 </html>
