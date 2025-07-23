@@ -12,6 +12,9 @@ const ActionType = {
     CREATE: "Create"
 };
 
+const CLONE_SUFFIX_ID = "_XXX";
+const CLONE_SUFFIX_NAME = " (clone)"
+
 class Tree {
     constructor(root, groups, actions) {
         this.root = root;
@@ -250,8 +253,8 @@ class Tree {
             "data": lnk2
         }
         if (target.clone){
-            d2.id += "_#"
-            d2.name += "_#"
+            d2.id += CLONE_SUFFIX_ID
+            d2.name += CLONE_SUFFIX_NAME
             d2.data.clone = true;
         }
         d.children.push(d2);
@@ -772,12 +775,12 @@ class Tree {
             });
 
         nodeUpdate.select("circle")
-            .attr("r", function (d) {
-                if (d.id.includes("(")) return 6
+           .attr("r", function (d) {
+                if (d.id.includes(CLONE_SUFFIX_ID + "_")) return 6
                 return 4.5
             })
             .style("fill", function (d) {
-                if (d.id.includes("(")) return "white";
+                if (d.id.includes(CLONE_SUFFIX_ID + "_")) return "white";
                 if (d.data?.clone) return 'black';
                 if (d.data?.disabled) return 'lightgrey';
                 return d.data?.color || "lightsteelblue";

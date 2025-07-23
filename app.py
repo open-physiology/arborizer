@@ -40,6 +40,9 @@ def get_vascular_targets(node_map, edges):
 
 
 def create_tree():
+    CLONE_SUFFIX_ID = "_XXX"
+    CLONE_SUFFIX_NAME = " (clone)"
+
     g.included_options = g.mysql_db.query_included()
     g.groups = {}
 
@@ -79,7 +82,7 @@ def create_tree():
         test = id
         count = 2
         while test in node_map:
-            test = id + "({0})".format(count)
+            test = id + CLONE_SUFFIX_ID + "_{0}".format(count)
             count += 1
         if count > 2:
             return test
@@ -170,7 +173,7 @@ def create_tree():
         if x in nodes and x not in loose_roots:
             edge_copy = edge.copy()
             edge_copy["clone"] = True
-            child = parent.child(edge["target"] + "_#", node_map[x]["name"] + "_#", edge_copy)
+            child = parent.child(edge["target"] + CLONE_SUFFIX_ID, node_map[x]["name"] + CLONE_SUFFIX_NAME, edge_copy)
         else:
             child = parent.child(edge["target"], node_map[x]["name"], edge)
         nodes[child.id] = child

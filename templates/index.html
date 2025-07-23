@@ -108,6 +108,9 @@
             let dataFlat = [];
             let used = new Set();
 
+            const CLONE_SUFFIX_ID = "_XXX";
+            const CLONE_SUFFIX_NAME = " (clone)"
+
             function toJSON(root) {
                 if (used.has(root.id)) {
                     return;
@@ -118,10 +121,10 @@
                 }
                 if (!curr.data || !curr.data.disabled) {
                     let rootCopy = {...curr};
-                    rootCopy.children = curr.children.map(child => child.id.replace("_#", ""));
-                    if (rootCopy.id.endsWith("_#")) {
-                        rootCopy.id = rootCopy.id.replace("_#", "");
-                        rootCopy.name = rootCopy.name.replace("_#", "");
+                    rootCopy.children = curr.children.map(child => child.id.replace(CLONE_SUFFIX_NAME, ""));
+                    if (rootCopy.id.includes(CLONE_SUFFIX_ID)) {
+                        rootCopy.id = rootCopy.id.replace(CLONE_SUFFIX_ID, "");
+                        rootCopy.name = rootCopy.name.replace(CLONE_SUFFIX_NAME, "");
                         used.add(rootCopy.id);
                     }
                     dataFlat.push(rootCopy);
