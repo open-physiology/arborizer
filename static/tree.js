@@ -14,6 +14,7 @@ const ActionType = {
 
 const CLONE_SUFFIX_ID = "_XXX";
 const CLONE_SUFFIX_NAME = " (clone)"
+const isDuplicateRegex = new RegExp(`^${CLONE_SUFFIX_ID}_\\d+$`);
 
 class Tree {
     constructor(root, groups, actions) {
@@ -254,6 +255,10 @@ class Tree {
         }
         if (target.clone){
             d2.id += CLONE_SUFFIX_ID
+            let count = 2;
+            while (this.findNode(d2.id)){
+                d2.id += "_"+count++;
+            }
             d2.name += CLONE_SUFFIX_NAME
             d2.data.clone = true;
         }
@@ -776,11 +781,11 @@ class Tree {
 
         nodeUpdate.select("circle")
            .attr("r", function (d) {
-                if (d.id.includes(CLONE_SUFFIX_ID + "_")) return 6
+                if (!d.data?.clone && isDuplicateRegex.test(d.id)) return 6
                 return 4.5
             })
             .style("fill", function (d) {
-                if (d.id.includes(CLONE_SUFFIX_ID + "_")) return "white";
+                if (!d.data?.clone && isDuplicateRegex.test(d.id)) return "white";
                 if (d.data?.clone) return 'black';
                 if (d.data?.disabled) return 'lightgrey';
                 return d.data?.color || "lightsteelblue";

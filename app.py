@@ -173,7 +173,10 @@ def create_tree():
         if x in nodes and x not in loose_roots:
             edge_copy = edge.copy()
             edge_copy["clone"] = True
-            child = parent.child(edge["target"] + CLONE_SUFFIX_ID, node_map[x]["name"] + CLONE_SUFFIX_NAME, edge_copy)
+            clone_id = revise_id(edge["target"])
+            clone_name =  node_map[x]["name"] + CLONE_SUFFIX_NAME
+            node_map[clone_id] = {"id": clone_id, "name": clone_name, "fmaID": node_map[x]["fmaID"]}
+            child = parent.child(clone_id, clone_name, edge_copy)
         else:
             child = parent.child(edge["target"], node_map[x]["name"], edge)
         nodes[child.id] = child
