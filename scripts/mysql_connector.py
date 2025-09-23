@@ -12,6 +12,8 @@ class ActionType(Enum):
     ADD_TO_GROUP = "AddToGroup"
     ADD_ORDER = "AddOrder"
     REMOVE_ORDER = "RemoveOrder"
+    REMOVE_ORDER_ALL = "RemoveOrderAll"
+    FIX_ORDER_ALL = "FixOrderAll"
     DISABLE = "Disable"
     ENABLE = "Enable"
 
@@ -131,14 +133,16 @@ class MySQLConnector:
     def query_vascular_edges(self):
         branches = []
         cursor = self.driver.cursor()
+        # TODO revise to include second lyph template
         query = """
             SELECT MAIN, BRANCH, CASE WHEN sequence = 0 THEN 1000 ELSE sequence END as sequence,
                 vl1originalID, vl2originalID, 
-                lyph_template_ID, node_colour, id, 
-                vl1originalvesselname, vl2originalvesselname, disabled, vessel_type from (
+                lt.lyph_template_ID, lt.node_colour, id, 
+                vl1originalvesselname, vl2originalvesselname, disabled, vessel_type, lt2.lyph_template_ID, lt2.node_colour from (
                 SELECT * FROM master_vascular WHERE MAIN in
                 (SELECT DISTINCT BRANCH FROM master_vascular, master_vascular_lyph_templates WHERE vl2originalID = VESSEL_FMA_ID and include)) as v
                 LEFT OUTER JOIN `master_vascular_lyph_templates` as lt ON v.vl1originalID = lt.VESSEL_FMA_ID
+                LEFT OUTER JOIN `master_vascular_lyph_templates` as lt2 ON v.vl2originalID = lt2.VESSEL_FMA_ID
                 order by vl1originalID, sequence
         """
         cursor.execute(query)
@@ -156,7 +160,9 @@ class MySQLConnector:
             obj = {"source": str(source), "target": str(item[1]), 'order': item[2],
                    'source_fma': str(item[3]), 'target_fma': str(item[4]),
                    'lyph_template': item[5], 'color': item[6], 'id': item[7],
-                   'source_name': item[8], 'target_name': item[9], 'disabled': item[10], 'vessel_type': item[11]}
+                   'source_name': item[8], 'target_name': item[9], 'disabled': item[10], 'vessel_type': item[11],
+                    "target_lyph_template": item[12], "target_color": item[13]
+            }
             branches.append(obj)
             prev = source
         for b in branches:
@@ -185,6 +191,10 @@ class MySQLConnector:
                     self.add_order(params)
                 elif action_type == ActionType.REMOVE_ORDER:
                     self.remove_order(params)
+                elif action_type == ActionType.REMOVE_ORDER_ALL:
+                    self.remove_order_all(params)
+                elif action_type == ActionType.FIX_ORDER_ALL:
+                    self.fix_order_all(params)
                 elif action_type == ActionType.MOVE_TO_GROUP:
                     self.move_to_group(params)
                 elif action_type == ActionType.ADD_TO_GROUP:
@@ -216,7 +226,7 @@ class MySQLConnector:
     # Associate a new lyph template with the vessel identified by external ID (called fmaID in the DB)
     def update_template(self, external_id, lyph_template_id):
         cursor = self.driver.cursor()
-        query = """update master_vascular_lyph_templates as v set v.lyph_template_ID=%s where v.VESSEL_FMA_ID='%s'"""
+        query = """update master_vascular_lyph_templates as v set v.lyph_template_ID=%s where v.VESSEL_FMA_ID=%s"""
         values = (lyph_template_id, external_id)
         cursor.execute(query, values)
         print("UPDATE, affected rows: ", cursor.rowcount)
@@ -398,6 +408,29 @@ class MySQLConnector:
         main = params[0]["source"].split('_')[0]
         old_order = params[1]
         self.decrease_order(main, old_order)
+
+    # Remove order from the chain
+    def remove_order_all(self, params):
+        main = params[0]["target"]
+        query = """UPDATE master_vascular SET sequence=0 WHERE MAIN={0} """.format(main)
+        # print(query)
+        cursor = self.driver.cursor()
+        cursor.execute(query)
+        print("REMOVE-ORDER-ALL, affected rows: ", cursor.rowcount)
+
+    # Set order
+    def fix_order_all(self, params):
+        id_list = params[0]
+        query = """UPDATE master_vascular AS mv
+               JOIN (
+                 SELECT ID, ROW_NUMBER() OVER (ORDER BY ID) AS new_sequence FROM master_vascular WHERE ID IN ({0})
+               ) AS numbered
+               ON mv.ID = numbered.ID
+               SET mv.sequence = numbered.new_sequence;""".format(id_list)
+        # print(query)
+        cursor = self.driver.cursor()
+        cursor.execute(query)
+        print("FIX-ORDER-ALL, affected rows: ", cursor.rowcount)
 
     # Update the order
     def update_order(self, params):

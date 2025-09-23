@@ -4,6 +4,7 @@ from flask import Flask, render_template, request, redirect, session, url_for, f
 from scripts.mysql_connector import MySQLConnector
 from scripts.node import Node
 from flask_toastr import Toastr
+import requests
 
 app = Flask(__name__)
 app.config['SESSION_PERMANENT'] = True
@@ -17,10 +18,22 @@ db_name, db_user, db_pwd, db_server, db_port, user_access = (login.values())
 
 def load_lyph_templates():
     try:
-        login = json.load(open('./credentials/api_mysql_db_wbkg.json', 'r'))
-        wbkg_name, wbkg_user, wbkg_pwd, wbkg_server, wbkg_port = (login.values())
-        wbkg_db = MySQLConnector(wbkg_name, wbkg_user, wbkg_pwd, wbkg_server, wbkg_port)
-        return wbkg_db.query_lyphs()
+        lyphs = []
+        url = "https://raw.githubusercontent.com/albatros13/apinatomy-models/main/wbrcm.json"
+        response = requests.get(url)
+        if response.status_code == 200:
+            data = response.json()  # Parse JSON response
+            for obj in data["lyphs"]:
+                if "isTemplate" in obj and obj["isTemplate"] and "id" in obj:
+                    lyphs.append({
+                        "id": obj["id"],
+                        "name": obj["name"] if "name" in obj else obj["id"],
+                        "ontologyTerms": obj["ontologyTerms"] if "ontologyTerms" in obj else []
+                    })
+            return lyphs
+        else:
+            flash("Failed to load lyph templates!")
+            print(f"Error: {response.status_code}")
     except Exception as e:
         flash("Failed to load lyph templates!")
         print(e)
@@ -135,11 +148,11 @@ def create_tree():
                 "included": 1 if branch["source_fma"] in include_set else 0, "vesselType": branch["vessel_type"]
             }
 
-            lyph_id = "lyph-" + branch["target"]
+            lyph_template2 = "wbkg:" + branch["target_lyph_template"] if branch["target_lyph_template"] else "lyph-" + branch["target"]
 
             lnk2_id = "lnk-" + m_id + "_" + t_id
             lnk2 = {
-                "id": lnk2_id, "conveyingLyph": lyph_id, "source": m_id, "target": t_id, "fmaID": branch["target_fma"],
+                "id": lnk2_id, "conveyingLyph": lyph_template2, "source": m_id, "target": t_id, "fmaID": branch["target_fma"],
                 "color": color, "group": group_id, "branch": branch["id"],
                 "included": 1 if branch["target_fma"] in include_set else 0, 'disabled': branch["disabled"],
                 "vesselType": branch["vessel_type"]
@@ -211,6 +224,15 @@ def login():
         flash("Thanks, you can now edit the dataset! Do not forget to save your changes.", 'success')
     else:
         flash("Wrong password, please try again!", 'error')
+    return redirect(url_for("index"))
+
+
+@app.route('/commit_api', methods=["GET", "POST"])
+def commit_api():
+    if session.get('logged_in'):
+        flash("You are allowed to commit the generated model...", 'success')
+    else:
+        flash("You are not authorized to commit to the ApiNATOMY repository! Please, login!", 'error')
     return redirect(url_for("index"))
 
 
