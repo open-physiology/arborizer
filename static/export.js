@@ -118,33 +118,47 @@ function convertToApiNATOMY(data) {
     saveAs(blob, `vascular-model${getDateTime()}.json`);
 }
 
-function convertToJSON(data){
+function convertToJSON(data) {
     let dataStr = "";
     try {
         let dataFlat = [];
         let used = new Set();
 
         const CLONE_SUFFIX_ID = "_XXX";
-        const CLONE_SUFFIX_NAME = " (clone)"
+
+        function getOriginalId(id) {
+            // Escape special regex characters in CLONE_SUFFIX_ID
+            const escapedSuffix = CLONE_SUFFIX_ID.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            // Match pattern: [id] + CLONE_SUFFIX_ID or [id] + CLONE_SUFFIX_ID + _1, _2, etc.
+            const clonePattern = new RegExp(escapedSuffix + '(?:_\\d+)?$');
+            return id.replace(clonePattern, "");
+        }
 
         function toJSON(root) {
+            if (root.data?.clone) {
+                return;
+            }
+
             if (used.has(root.id)) {
                 return;
             }
+
             let curr = root;
             while (curr.children?.length > 0 && curr.children[0].data?.disabled) {
                 curr = curr.children[curr.children.length - 1];
             }
+
             if (!curr.data || !curr.data.disabled) {
                 let rootCopy = {...curr};
-                rootCopy.children = curr.children.map(child => child.id.replace(CLONE_SUFFIX_NAME, ""));
-                if (rootCopy.id.includes(CLONE_SUFFIX_ID)) {
-                    rootCopy.id = rootCopy.id.replace(CLONE_SUFFIX_ID, "");
-                    rootCopy.name = rootCopy.name.replace(CLONE_SUFFIX_NAME, "");
-                    used.add(rootCopy.id);
-                }
+
+                // Replace clone IDs in children references
+                rootCopy.children = curr.children?.map(child => getOriginalId(child.id)) || [];
+
+                // Mark as processed
+                used.add(root.id);
                 dataFlat.push(rootCopy);
             }
+
             if (curr.children) {
                 curr.children.forEach(child => toJSON(child));
             }
