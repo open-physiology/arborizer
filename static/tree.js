@@ -832,6 +832,7 @@ class Tree {
             .style("fill", function (d) {
                 if (!d.data?.clone && isDuplicateRegex.test(d.id)) return "white";
                 if (d.data?.clone) return 'black';
+                if (d.data?.connector) return 'green';
                 if (d.data?.disabled) return 'lightgrey';
                 return d.data?.color || "lightsteelblue";
             });
