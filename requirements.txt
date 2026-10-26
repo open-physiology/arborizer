@@ -7,7 +7,7 @@ Jinja2==3.1.5
 MarkupSafe==3.0.2
 Werkzeug==3.1.3
 flask_toastr==0.5.8
-gunicorn==20.0.4
+gunicorn==23.0.0
 mysql-connector-python==9.0.0
 packaging==24.0
 python-dateutil==2.9.0.post0
