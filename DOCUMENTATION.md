@@ -51,3 +51,16 @@ In a scientific context, Arborizer serves as a bridge between raw anatomical dat
 - Verify and correct anatomical connections.
 - Model complex branching patterns in vascular systems.
 - Export standardized data for physiological simulations.
+
+### 6. Configuration and Deployment
+The application reads its settings from environment variables (see `.env.example`):
+
+| Variable | Description |
+|---|---|
+| `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT` | MySQL connection parameters |
+| `EDITOR_PASSWORD` | Password that unlocks editing in the web UI |
+| `SECRET_KEY` | Flask session signing key |
+
+**Local run:** copy `.env.example` to `.env`, fill in the values, then run `./run.sh` (serves on http://127.0.0.1:5050). The `.env` file is git-ignored and must never be committed.
+
+**Render:** build command `pip install -r requirements.txt`, start command `gunicorn app:app` (as in `Procfile`). Set the variables above under the service's *Environment* settings (or upload `.env` as a Secret File).

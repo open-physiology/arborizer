@@ -1,19 +1,29 @@
 import json
+import os
 from datetime import timedelta
+from dotenv import load_dotenv
 from flask import Flask, render_template, request, redirect, session, url_for, flash, g, current_app
 from scripts.mysql_connector import MySQLConnector
 from scripts.node import Node
 from flask_toastr import Toastr
 import requests
 
+# Configuration is read from environment variables. Locally they can be placed in a .env file
+# (see .env.example); on Render they are set in the service's Environment settings.
+load_dotenv()
+
 app = Flask(__name__)
 app.config['SESSION_PERMANENT'] = True
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=24)
-app.secret_key = '***REMOVED***'
+app.secret_key = os.environ.get('SECRET_KEY') or os.urandom(24)
 toastr = Toastr(app)
 
-login = json.load(open('./credentials/api_mysql_db.json', 'r'))
-db_name, db_user, db_pwd, db_server, db_port, user_access = (login.values())
+db_name = os.environ['DB_NAME']
+db_user = os.environ['DB_USER']
+db_pwd = os.environ['DB_PASSWORD']
+db_server = os.environ['DB_HOST']
+db_port = os.environ.get('DB_PORT', '3306')
+user_access = os.environ['EDITOR_PASSWORD']
 
 
 def load_lyph_templates():
