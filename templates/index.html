@@ -48,6 +48,9 @@
     </div>
     <div class="w3-border">
         <button id="btnDownload" class="w3-bar-item w3-hover-light-grey" title="Download" onclick=download()>⇩</button>
+        <button id="btnExportChain" class="w3-bar-item w3-hover-light-grey" title="Export part of a chain"
+                onclick=exportChain()>✂
+        </button>
     </div>
     {{ toastr.include_toastr_js() }}
 </div>
@@ -55,6 +58,28 @@
 {% include 'login.html' %}
 {% include 'list.html' %}
 {% include 'tree.html' %}
+
+<div id="divExportChain" style="display: none;" class="w3-modal">
+    <div class="w3-modal-content">
+        <header class="w3-container w3-teal">
+            <button class="cross" onclick="document.getElementById('divExportChain').style.display='none'">&cross;
+            </button>
+            Export part of a chain
+        </header>
+        <div class="w3-container w3-padding-24">
+            <label for="selExportChain">Chain:</label>
+            <select id="selExportChain" style="padding: 4px; width: 220px; margin-right: 8px;"></select>
+
+            <label for="inpExportFrom">From:</label>
+            <input type="number" id="inpExportFrom" min="1" value="1" style="width: 70px; margin-right: 8px;">
+
+            <label for="inpExportTo">To:</label>
+            <input type="number" id="inpExportTo" min="1" value="1" style="width: 70px; margin-right: 8px;">
+
+            <input type="button" value="Export" class="w3-margin-left" onclick="doExportChain()">
+        </div>
+    </div>
+</div>
 
 <script>
     const contextMenu = document.getElementById("listContextMenu");
@@ -123,8 +148,49 @@
     }
 
     function download() {
+        // Recompute so that the export reflects the current tree and its layout
+        dataStr = convertToJSON(data, treeDiagram);
         const blob = new Blob([dataStr], {type: 'application/json'});
         saveAs(blob, `arborizer${getDateTime()}.json`);
+    }
+
+    function exportChain() {
+        let sel = document.getElementById("selExportChain");
+        let groupList = Object.values(groups).sort(function (a, b) {
+            if (a.name > b.name) return 1;
+            if (a.name < b.name) return -1;
+            return 0;
+        });
+        if (groupList.length === 0) {
+            window.alert("No chains available to export.");
+            return;
+        }
+        sel.innerHTML = "";
+        groupList.forEach(function (group) {
+            let option = document.createElement("option");
+            option.value = group.id;
+            option.text = group.name;
+            sel.appendChild(option);
+        });
+        document.getElementById("divExportChain").style.display = "block";
+    }
+
+    function doExportChain() {
+        let groupId = document.getElementById("selExportChain").value;
+        let chainName = document.getElementById("selExportChain").selectedOptions[0].text;
+        let fromLevel = parseInt(document.getElementById("inpExportFrom").value, 10);
+        let toLevel = parseInt(document.getElementById("inpExportTo").value, 10);
+        if (isNaN(fromLevel) || isNaN(toLevel) || fromLevel < 1 || toLevel < fromLevel) {
+            window.alert("Please enter a valid level range (From ≥ 1 and To ≥ From).");
+            return;
+        }
+        let groupRoot = treeDiagram.findNode(groupId.substring(2));
+        if (!groupRoot) {
+            window.alert(`Chain "${chainName}" not found in the tree.`);
+            return;
+        }
+        exportChainSegment(groupRoot, groupId, chainName, fromLevel, toLevel);
+        document.getElementById("divExportChain").style.display = "none";
     }
 
     function login() {

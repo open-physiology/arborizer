@@ -11,3 +11,8 @@ __pycache__/
 
 # Node
 node_modules/
+
+# IDE project files
+.idea/
+*.iml
+.vscode/

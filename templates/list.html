@@ -139,6 +139,7 @@
     function openNav() {
         vesselPanel.style.display = "block";
         tree.style.marginLeft = "850px";
+        treeDiagram?.fitToView();
         btnHide.style.display = "block";
         btnShow.style.display = "none";
         btnShowInc.style.display = "none";
@@ -147,6 +148,7 @@
     function closeNav() {
         vesselPanel.style.display = "none";
         tree.style.marginLeft = "50px";
+        treeDiagram?.fitToView();
         btnHide.style.display = "none";
         btnShow.style.display = "block";
         btnShowInc.style.display = "block";
@@ -155,6 +157,7 @@
     function openNavInc() {
         includedPanel.style.display = "block";
         tree.style.marginLeft = "1100px";
+        treeDiagram?.fitToView();
         btnHideInc.style.display = "block";
         btnShowInc.style.display = "none";
         btnShow.style.display = "none";
@@ -163,6 +166,7 @@
     function closeNavInc() {
         includedPanel.style.display = "none";
         tree.style.marginLeft = "50px";
+        treeDiagram?.fitToView();
         btnHideInc.style.display = "none";
         btnShowInc.style.display = "block";
         btnShow.style.display = "block";

@@ -18,6 +18,14 @@ const CLONE_SUFFIX_ID = "_XXX";
 const CLONE_SUFFIX_NAME = " (clone)"
 const isDuplicateRegex = new RegExp(`^${CLONE_SUFFIX_ID}_\\d+$`);
 
+// Tree layout
+const NODE_SPACING_X = 110;  // horizontal distance between neighbouring nodes
+const LEVEL_SPACING_Y = 35;  // vertical distance between tree levels
+const LABEL_MARGIN = 100;    // room for node labels on the sides of the tree
+const MIN_SCALE = 0.5;
+const MAX_SCALE = 2.0;
+const MAX_FIT_SCALE = 1.5;   // do not blow up small trees when fitting to the screen
+
 class Tree {
     constructor(root, groups, actions) {
         this.root = root;
@@ -28,19 +36,17 @@ class Tree {
     }
 
     createTreeDiagram() {
-        let numGroups = Object.keys(this.groups).length;
-        let max_width = Math.max(numGroups * 100, 4000)
-
-        let margin = {top: 10, right: 20, bottom: 10, left: 40},
-            width = max_width - margin.right - margin.left,
-            height = 4000 - margin.top - margin.bottom;
-
+        // Fixed spacing between neighbouring nodes (wide enough for a 15-char label) and between levels,
+        // so the drawing grows with the number of branches instead of being stretched to a fixed width
         this.tree = d3.layout.tree()
-            .size([width, height]);
+            .nodeSize([NODE_SPACING_X, LEVEL_SPACING_Y])
+            // Nodes from different subtrees may have labels facing each other, give them more room
+            .separation((a, b) => a.parent === b.parent ? 1 : 1.8);
 
         this.svg = d3.select("#tree").append("svg")
-            .attr("width", width + margin.right + margin.left)
-            .attr("height", height + margin.top + margin.bottom)
+            .attr("width", "100%")
+            .attr("height", "100%")
+            .style("display", "block");
 
         this.svg.append("rect")
             .attr("width", "100%")
@@ -49,21 +55,70 @@ class Tree {
             .on('click', this.hideMenu)
             .on('contextmenu', this.hideMenu);
 
-        this.treeGroup = this.svg.append("g")
-            .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+        this.treeGroup = this.svg.append("g");
 
-        let zoom = d3.behavior.zoom()
-            .translate([0, 0])
-            .scaleExtent([0.5, 2.0])
+        this.zoom = d3.behavior.zoom()
+            .scaleExtent([MIN_SCALE, MAX_SCALE])
             .on("zoom", () => {
-                this.treeGroup.attr("transform", ["translate(" + d3.event.translate + ")", "scale(" + d3.event.scale + ")"])
+                this.treeGroup.attr("transform", "translate(" + d3.event.translate + ")scale(" + d3.event.scale + ")");
             });
-        this.svg.call(zoom);
+        this.svg.call(this.zoom);
 
         this.root.x0 = 0;
-        this.root.y0 = width / 2;
+        this.root.y0 = 0;
 
         this.update(this.root);
+
+        window.addEventListener("resize", () => this.fitToView(false));
+    }
+
+    // Part of the #tree panel visible in the window (the panel may extend beyond the screen edge)
+    getViewSize() {
+        const el = document.getElementById("tree");
+        const rect = el.getBoundingClientRect();
+        return {
+            width: Math.min(el.clientWidth, window.innerWidth - rect.left),
+            height: Math.min(el.clientHeight, window.innerHeight - rect.top)
+        };
+    }
+
+    getTreeBounds(nodes) {
+        let xs = nodes.map(d => d.x), ys = nodes.map(d => d.y);
+        return {
+            minX: Math.min(...xs) - LABEL_MARGIN, maxX: Math.max(...xs) + LABEL_MARGIN,
+            minY: Math.min(...ys), maxY: Math.max(...ys)
+        };
+    }
+
+    // Scale and center the tree so that it entirely fits the visible area
+    fitToView(animate = true) {
+        const bounds = this.bounds;
+        const view = this.getViewSize();
+        if (!bounds || view.width <= 0 || view.height <= 0) {
+            return;
+        }
+        const pad = 20;
+        const treeWidth = bounds.maxX - bounds.minX;
+        const treeHeight = bounds.maxY - bounds.minY;
+        let scale = Math.min(
+            (view.width - 2 * pad) / Math.max(treeWidth, 1),
+            (view.height - 2 * pad) / Math.max(treeHeight, 1),
+            MAX_FIT_SCALE);
+        // Let the user zoom out at least as far as needed to see the whole tree
+        this.zoom.scaleExtent([Math.min(MIN_SCALE, scale), MAX_SCALE]);
+
+        // Center horizontally, align to top
+        const translate = [
+            view.width / 2 - (bounds.minX + treeWidth / 2) * scale,
+            pad - bounds.minY * scale
+        ];
+        this.zoom.scale(scale).translate(translate);
+        const transform = "translate(" + translate + ")scale(" + scale + ")";
+        if (animate) {
+            this.treeGroup.transition().duration(750).attr("transform", transform);
+        } else {
+            this.treeGroup.attr("transform", transform);
+        }
     }
 
     hideMenu() {
@@ -578,6 +633,14 @@ class Tree {
         return nodes.find(e => e.id === nodeID);
     }
 
+    getNodeColor(d) {
+        if (!d.data?.clone && isDuplicateRegex.test(d.id)) return "white";
+        if (d.data?.clone) return 'black';
+        if (d.data?.connector) return 'green';
+        if (d.data?.disabled) return 'lightgrey';
+        return d.data?.color || "lightsteelblue";
+    }
+
     getLabel(d) {
         if (d.data?.connector) {
             return (d.data.order || '?');
@@ -597,8 +660,16 @@ class Tree {
 
         // Normalize for fixed-depth.
         nodes.forEach(function (d) {
-            d.y = d.depth * 35;
+            d.y = d.depth * LEVEL_SPACING_Y;
         });
+
+        // Refit the view when the tree extent changes (e.g., branches included or removed)
+        let bounds = this.getTreeBounds(nodes);
+        let old = this.bounds;
+        this.bounds = bounds;
+        if (!old || old.minX !== bounds.minX || old.maxX !== bounds.maxX || old.minY !== bounds.minY || old.maxY !== bounds.maxY) {
+            this.fitToView(!!old);
+        }
 
         // function isShort(d){
         //     if (!d) return false;
@@ -829,13 +900,7 @@ class Tree {
                 if (!d.data?.clone && isDuplicateRegex.test(d.id)) return 6
                 return 4.5
             })
-            .style("fill", function (d) {
-                if (!d.data?.clone && isDuplicateRegex.test(d.id)) return "white";
-                if (d.data?.clone) return 'black';
-                if (d.data?.connector) return 'green';
-                if (d.data?.disabled) return 'lightgrey';
-                return d.data?.color || "lightsteelblue";
-            });
+            .style("fill", d => this.getNodeColor(d));
 
         nodeUpdate.select("text")
             .style("fill-opacity", 1);

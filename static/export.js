@@ -1,4 +1,15 @@
 function convertToApiNATOMY(data) {
+    let model = buildApiNATOMY(data);
+    downloadModel(model, `vascular-model${getDateTime()}.json`);
+}
+
+function downloadModel(model, filename) {
+    let modelStr = JSON.stringify(model, null, 2);
+    const blob = new Blob([modelStr], {type: 'application/json'});
+    saveAs(blob, filename);
+}
+
+function buildApiNATOMY(data) {
     let lyphs = [];
     let lyphMap = {};
     let links = [];
@@ -113,12 +124,11 @@ function convertToApiNATOMY(data) {
         "links": links,
         "chains": chains
     }
-    let modelStr = JSON.stringify(model, null, 2);
-    const blob = new Blob([modelStr], {type: 'application/json'});
-    saveAs(blob, `vascular-model${getDateTime()}.json`);
+    return model;
 }
 
-function convertToJSON(data) {
+// If treeDiagram is given, each node also gets its layout coordinates (x, y) and displayed color
+function convertToJSON(data, treeDiagram) {
     let dataStr = "";
     try {
         let dataFlat = [];
@@ -149,7 +159,15 @@ function convertToJSON(data) {
             }
 
             if (!curr.data || !curr.data.disabled) {
-                let rootCopy = {...curr};
+                // Skip d3 layout internals (parent is a circular reference)
+                let {parent, depth, x0, y0, ...rootCopy} = curr;
+                if (treeDiagram) {
+                    if (curr.x !== undefined) {
+                        rootCopy.x = Math.round(curr.x);
+                        rootCopy.y = Math.round(curr.y);
+                    }
+                    rootCopy.color = treeDiagram.getNodeColor(curr);
+                }
 
                 // Replace clone IDs in children references
                 rootCopy.children = curr.children?.map(child => getOriginalId(child.id)) || [];
@@ -171,4 +189,84 @@ function convertToJSON(data) {
         console.log(error);
     }
     return dataStr;
+}
+
+// --- Export part of a single chain (level range) --------------------------
+
+// A chain (e.g. "Aorta") is a linear spine of connector nodes descending from
+// its group root. Each connector's data.order is the level shown in the tree
+// (the node label). Its children[0] is the vessel branching off at that level,
+// children[1] the next connector on the spine. This collects the ordered spine.
+function collectChainSpine(groupRoot, groupId) {
+    let spine = [];
+    let curr = (groupRoot.children || []).find(c => c.data?.connector && c.data?.group === groupId);
+    while (curr) {
+        spine.push(curr);
+        let next = curr.children && curr.children[1];
+        curr = (next && next.data?.connector && next.data?.group === groupId) ? next : null;
+    }
+    return spine;
+}
+
+// Plain-object copies decoupled from the live d3 nodes (which carry circular
+// .parent references). data is shared by reference - the converters only read it.
+function cloneNodeShallow(n) {
+    return {id: n.id, name: n.name, data: n.data, children: []};
+}
+
+function cloneSubtree(n) {
+    let copy = cloneNodeShallow(n);
+    copy.children = (n.children || []).map(cloneSubtree);
+    return copy;
+}
+
+// Build a tree containing only the selected chain, restricted to connectors
+// whose level (order) is within [fromLevel, toLevel] inclusive, keeping the
+// vessel that branches off at each of those levels. Returns null if empty.
+function pruneChainSegment(groupRoot, groupId, fromLevel, toLevel) {
+    let spine = collectChainSpine(groupRoot, groupId);
+    let selected = spine.filter(c => {
+        let order = c.data?.order || 0;
+        return order >= fromLevel && order <= toLevel;
+    });
+    if (selected.length === 0) {
+        return null;
+    }
+    let connectors = selected.map(c => {
+        let copy = cloneNodeShallow(c);
+        // children[0] is the vessel branching off at this level (kept whole)
+        copy.branch = (c.children && c.children[0]) ? cloneSubtree(c.children[0]) : null;
+        return copy;
+    });
+    connectors.forEach((copy, i) => {
+        copy.children = [];
+        if (copy.branch) {
+            copy.children.push(copy.branch);
+        }
+        if (i + 1 < connectors.length) {
+            copy.children.push(connectors[i + 1]);
+        }
+        delete copy.branch;
+    });
+    let root = cloneNodeShallow(groupRoot);
+    root.children = [connectors[0]];
+    return root;
+}
+
+function sanitizeName(name) {
+    return (name || "chain").replace(/[^A-Za-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+}
+
+// Export the ApiNATOMY sub-model for one chain between two levels.
+function exportChainSegment(groupRoot, groupId, chainName, fromLevel, toLevel) {
+    let pruned = pruneChainSegment(groupRoot, groupId, fromLevel, toLevel);
+    if (!pruned) {
+        window.alert(`No levels found in range ${fromLevel}-${toLevel} for chain "${chainName}".`);
+        return;
+    }
+    let model = buildApiNATOMY(pruned);
+    let tag = sanitizeName(chainName);
+    model.id = `vascular_${tag}_${fromLevel}_${toLevel}`;
+    model.name = `${chainName} [${fromLevel}-${toLevel}]`;
+    downloadModel(model, `vascular-${tag}-${fromLevel}-${toLevel}-${getDateTime()}.json`);
 }
