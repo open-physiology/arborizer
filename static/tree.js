@@ -17,6 +17,10 @@ const ActionType = {
 const CLONE_SUFFIX_ID = "_XXX";
 const CLONE_SUFFIX_NAME = " (clone)"
 const isDuplicateRegex = new RegExp(`^${CLONE_SUFFIX_ID}_\\d+$`);
+const cloneSuffixRegex = new RegExp(`${CLONE_SUFFIX_ID}(_\\d+)*$`);
+
+// Remembers the displayed root for this browser tab: saving edits, logging in etc. reload the page
+const VIEW_ROOT_STORAGE_KEY = "arborizer.viewRoot";
 
 // Tree layout
 const NODE_SPACING_X = 110;  // horizontal distance between neighbouring nodes
@@ -28,7 +32,8 @@ const MAX_FIT_SCALE = 1.5;   // do not blow up small trees when fitting to the s
 
 class Tree {
     constructor(root, groups, actions) {
-        this.root = root;
+        this.fullRoot = root;
+        this.root = root;    // Root of the displayed tree: fullRoot or, after "Make a root", one of its nodes
         this.groups = groups || [];
         this.actions = actions || [];
         this.createTreeDiagram();
@@ -64,12 +69,95 @@ class Tree {
             });
         this.svg.call(this.zoom);
 
+        // Lay out the whole tree once so that every node knows its parent, even if only a part of it is displayed
+        this.tree.nodes(this.fullRoot);
+        this.root = this.loadViewRoot();
+        this.renderViewBar();
+
         this.root.x0 = 0;
         this.root.y0 = 0;
 
         this.update(this.root);
 
         window.addEventListener("resize", () => this.fitToView(false));
+    }
+
+    isSubtreeView() {
+        return this.root !== this.fullRoot;
+    }
+
+    // Display the tree starting from the given node. This only changes the view: the full tree stays in memory,
+    // and edits are saved as usual
+    setViewRoot(d) {
+        this.hideMenu();
+        // A clone has no branches of its own, start from the vessel it duplicates
+        if (d.data?.clone) {
+            d = this.findNode(d.id.replace(cloneSuffixRegex, "")) || d;
+        }
+        if (d === this.root) {
+            return;
+        }
+        this.root = d;
+        this.saveViewRoot();
+        this.renderViewBar();
+        // The node may not have been drawn yet
+        d.x0 ??= 0;
+        d.y0 ??= 0;
+        this.update(d);
+        this.fitToView();
+    }
+
+    showFullTree() {
+        this.setViewRoot(this.fullRoot);
+    }
+
+    loadViewRoot() {
+        let id = null;
+        try {
+            id = sessionStorage.getItem(VIEW_ROOT_STORAGE_KEY);
+        } catch (e) {
+            console.log(e);
+        }
+        // The node may be gone, e.g., after restoring a backup
+        return (id && this.findNode(id)) || this.fullRoot;
+    }
+
+    saveViewRoot() {
+        try {
+            if (this.isSubtreeView()) {
+                sessionStorage.setItem(VIEW_ROOT_STORAGE_KEY, this.root.id);
+            } else {
+                sessionStorage.removeItem(VIEW_ROOT_STORAGE_KEY);
+            }
+        } catch (e) {
+            console.log(e);
+        }
+    }
+
+    // Tell the user that only a part of the tree is displayed and offer the way back
+    renderViewBar() {
+        const bar = document.getElementById("treeViewBar");
+        bar.style.display = this.isSubtreeView() ? "block" : "none";
+        if (this.isSubtreeView()) {
+            const fmaID = this.root.data?.fmaID;
+            document.getElementById("treeViewRootName").textContent = this.root.name + (fmaID ? ` (FMA:${fmaID})` : "");
+        }
+    }
+
+    // All vessels of the full tree that can be selected by FMA ID or name (no connectors or clones)
+    getVessels() {
+        const res = [];
+        const stack = [this.fullRoot];
+        while (stack.length > 0) {
+            const d = stack.pop();
+            if (d.data && !d.data.connector && !d.data.clone) {
+                res.push(d);
+            }
+            if (d.children) {
+                stack.push(...d.children);
+            }
+        }
+        return res.sort((a, b) => a.name.localeCompare(b.name));
     }
 
     // Part of the #tree panel visible in the window (the panel may extend beyond the screen edge)
@@ -98,11 +186,14 @@ class Tree {
             return;
         }
         const pad = 20;
+        // Keep the root below the bar shown over the tree (it has no size when hidden)
+        const bar = document.getElementById("treeViewBar");
+        const topPad = pad + bar.offsetTop + bar.offsetHeight;
         const treeWidth = bounds.maxX - bounds.minX;
         const treeHeight = bounds.maxY - bounds.minY;
         let scale = Math.min(
             (view.width - 2 * pad) / Math.max(treeWidth, 1),
-            (view.height - 2 * pad) / Math.max(treeHeight, 1),
+            (view.height - pad - topPad) / Math.max(treeHeight, 1),
             MAX_FIT_SCALE);
         // Let the user zoom out at least as far as needed to see the whole tree
         this.zoom.scaleExtent([Math.min(MIN_SCALE, scale), MAX_SCALE]);
@@ -110,7 +201,7 @@ class Tree {
         // Center horizontally, align to top
         const translate = [
             view.width / 2 - (bounds.minX + treeWidth / 2) * scale,
-            pad - bounds.minY * scale
+            topPad - bounds.minY * scale
         ];
         this.zoom.scale(scale).translate(translate);
         const transform = "translate(" + translate + ")scale(" + scale + ")";
@@ -628,9 +719,19 @@ class Tree {
         }
     }
 
+    // Search the full tree, not only the displayed part. Must not run the layout: it would reset the displayed nodes
     findNode(nodeID) {
-        let nodes = this.tree.nodes(this.root);
-        return nodes.find(e => e.id === nodeID);
+        const stack = [this.fullRoot];
+        while (stack.length > 0) {
+            const d = stack.pop();
+            if (d.id === nodeID) {
+                return d;
+            }
+            if (d.children) {
+                stack.push(...d.children);
+            }
+        }
+        return undefined;
     }
 
     getNodeColor(d) {
@@ -741,6 +842,7 @@ class Tree {
             const btnDisable = document.getElementById("btnDisable");
             const btnEnable = document.getElementById("btnEnable");
             const btnAsRoot = document.getElementById("btnAsRoot");
+            const btnMakeRoot = document.getElementById("btnMakeRoot");
             //To enable loops and nodes with 2 or more parents
             const btnCopy = document.getElementById("btnCopy");
             const btnPaste = document.getElementById("btnPaste");
@@ -764,10 +866,17 @@ class Tree {
             let ul = document.getElementById('ulChange');
             ul.innerHTML = '';
 
+            btnMakeRoot.style.display = d === this.root ? "none" : "block";
+            btnMakeRoot.onclick = e => this.setViewRoot(d);
+
+            // When the displayed tree starts in the middle of a chain, the head of the chain is out of view,
+            // while editing a chain moves nodes along all of it (and possibly above the displayed root)
+            const isChainCut = this.root.data?.connector && d.data.group === this.root.data.group;
+
             if (d.data.connector) {
                 // Actions that apply to connector nodes in a group
                 // NK it is important not to allow actions on a newly added branch - no row ID exists
-                if (d.data.branch && d.data.group && d.children?.length >= 0) {
+                if (d.data.branch && d.data.group && d.children?.length >= 0 && !isChainCut) {
                     btnRemove.onclick = e => this.removeNode(d);
                     btnRemove.style.display = "block";
 
@@ -852,7 +961,7 @@ class Tree {
                     }
                 }
                 // Clone only can be removed
-                if (!d.parent?.data?.connector) {
+                if (!d.parent?.data?.connector && d !== this.root) {
                     btnRemove.onclick = e => this.removeNode(d);
                     btnRemove.style.display = "block";
                 }

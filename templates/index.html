@@ -28,6 +28,9 @@
         <button id="btnHideInc" class="w3-bar-item w3-hover-light-grey" style="display: none" title="Hide included"
                 onclick=closeNavInc()>×
         </button>
+        <button id="btnChooseRoot" class="w3-bar-item w3-hover-light-grey" title="Start the tree from a vessel"
+                onclick=openRootDialog()>🌳
+        </button>
     </div>
     <div class="w3-border">
         <button id="btnLogin" class="w3-bar-item w3-hover-light-grey" title="Log in" onclick=login()>🔒</button>
@@ -77,6 +80,28 @@
             <input type="number" id="inpExportTo" min="1" value="1" style="width: 70px; margin-right: 8px;">
 
             <input type="button" value="Export" class="w3-margin-left" onclick="doExportChain()">
+        </div>
+    </div>
+</div>
+
+<div id="divChooseRoot" style="display: none;" class="w3-modal">
+    <div class="w3-modal-content">
+        <header class="w3-container w3-teal">
+            <button class="cross" onclick="document.getElementById('divChooseRoot').style.display='none'">&cross;
+            </button>
+            Start the tree from a vessel
+        </header>
+        <div class="w3-container w3-padding-24">
+            <form onsubmit="applyRootDialog(); return false;">
+                <label for="inpRootVessel">FMA ID or vessel name:</label>
+                <input type="text" id="inpRootVessel" list="lstRootVessels" autocomplete="off"
+                       style="width: 420px; margin-right: 8px;">
+                <datalist id="lstRootVessels"></datalist>
+                <input type="submit" value="Show">
+                <input type="button" id="btnRootDialogFull" value="Show full tree" class="w3-margin-left"
+                       onclick="showFullTreeFromDialog()">
+            </form>
+            <div id="rootDialogError" class="w3-text-red w3-margin-top" style="display: none;"></div>
         </div>
     </div>
 </div>
@@ -133,8 +158,13 @@
         treeDiagram = new Tree(data, groups, actions);
     }
 
+    // Exports follow the view: if the tree starts from a selected node, only that part is exported
     function downloadApi(){
-        convertToApiNATOMY(data);
+        if (treeDiagram.isSubtreeView()) {
+            exportSubtreeModel(treeDiagram.root);
+        } else {
+            convertToApiNATOMY(data);
+        }
     }
 
     function getDateTime() {
@@ -149,9 +179,60 @@
 
     function download() {
         // Recompute so that the export reflects the current tree and its layout
-        dataStr = convertToJSON(data, treeDiagram);
+        const viewRoot = treeDiagram.root;
+        dataStr = convertToJSON(viewRoot, treeDiagram);
         const blob = new Blob([dataStr], {type: 'application/json'});
-        saveAs(blob, `arborizer${getDateTime()}.json`);
+        const tag = treeDiagram.isSubtreeView() ? `-${sanitizeName(viewRoot.name)}-` : "";
+        saveAs(blob, `arborizer${tag}${getDateTime()}.json`);
+    }
+
+    function vesselLabel(vessel) {
+        return `${vessel.name} (FMA:${vessel.data.fmaID})`;
+    }
+
+    function openRootDialog() {
+        const options = document.getElementById("lstRootVessels");
+        options.innerHTML = "";
+        treeDiagram.getVessels().forEach(vessel => {
+            const option = document.createElement("option");
+            option.value = vesselLabel(vessel);
+            options.appendChild(option);
+        });
+        document.getElementById("rootDialogError").style.display = "none";
+        document.getElementById("btnRootDialogFull").style.display = treeDiagram.isSubtreeView() ? "inline-block" : "none";
+        document.getElementById("divChooseRoot").style.display = "block";
+        const input = document.getElementById("inpRootVessel");
+        input.value = "";
+        input.focus();
+    }
+
+    function applyRootDialog() {
+        const text = document.getElementById("inpRootVessel").value.trim().toLowerCase();
+        if (!text) {
+            return;
+        }
+        const key = text.replace(/^fma:\s*/, "");
+        const treeVessels = treeDiagram.getVessels();
+        const vessel = treeVessels.find(v => vesselLabel(v).toLowerCase() === text)
+            || treeVessels.find(v => v.data.fmaID.toLowerCase() === key)
+            || treeVessels.find(v => v.name.toLowerCase() === key);
+        if (vessel) {
+            document.getElementById("divChooseRoot").style.display = "none";
+            treeDiagram.setViewRoot(vessel);
+            return;
+        }
+        // Tell apart a mistyped vessel from a known one that the tree does not show
+        const known = vessels.find(v => v.fmaID.toLowerCase() === key || v.name.toLowerCase() === key);
+        const error = document.getElementById("rootDialogError");
+        error.textContent = known
+            ? `${known.name} (FMA:${known.fmaID}) is not in the current tree. To show it, add it to the tree (☰) or include it (☑) and apply the changes.`
+            : `No vessel in the tree has this FMA ID or name.`;
+        error.style.display = "block";
+    }
+
+    function showFullTreeFromDialog() {
+        document.getElementById("divChooseRoot").style.display = "none";
+        treeDiagram.showFullTree();
     }
 
     function exportChain() {

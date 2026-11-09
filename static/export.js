@@ -9,6 +9,29 @@ function downloadModel(model, filename) {
     saveAs(blob, filename);
 }
 
+// Export the ApiNATOMY sub-model of the tree that starts from the given node
+function exportSubtreeModel(root) {
+    // Nothing above the root is exported, so its lyph must not refer to a predecessor. A parent with
+    // the same link ID marks a chain start, just like a top-level vessel does for its first connector.
+    // A top-level vessel itself has no lyph (it shares the link ID with that connector): keep it so.
+    let start = skipDisabledBranches(root);
+    let parentData = root.parent?.data ? {id: start.data.id} : undefined;
+    let model = buildApiNATOMY({id: "subtree", name: root.name, data: parentData, children: [start]});
+    let tag = sanitizeName(root.name);
+    model.id = `vascular_${tag}`;
+    model.name = `vascular from ${root.name}`;
+    downloadModel(model, `vascular-model-${tag}-${getDateTime()}.json`);
+}
+
+// Levels of a chain whose branch is disabled do not produce lyphs
+function skipDisabledBranches(node) {
+    let curr = node;
+    while (curr.children?.length > 0 && (!curr.data || curr.data.order > 0) && curr.children[0].data?.disabled) {
+        curr = curr.children[curr.children.length - 1];
+    }
+    return curr;
+}
+
 function buildApiNATOMY(data) {
     let lyphs = [];
     let lyphMap = {};
@@ -16,10 +39,7 @@ function buildApiNATOMY(data) {
     let chains = [];
 
     function generateLyphs(target, source) {
-        let curr = target;
-        while (curr.children?.length > 0 && (!curr.data || curr.data.order > 0) && curr.children[0].data?.disabled) {
-            curr = curr.children[curr.children.length - 1];
-        }
+        let curr = skipDisabledBranches(target);
         if (source?.data && curr.data && !curr.data.disabled) {
             if (curr.data.order > 0 || curr.data.included) {
                 let lyph = {
